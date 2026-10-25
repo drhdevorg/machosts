@@ -1,0 +1,20 @@
+{
+  "configurations": [
+    {
+      "id": "8D68C226-AC2C-44F9-BE0F-93BCC5F7B864",
+      "name": "Default",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {},
+  "testTargets": [
+    {
+      "target": {
+        "containerPath": "container:MacHosts.xcodeproj",
+        "identifier": "B160047327AA2E7DC9FBE258",
+        "name": "MacHostsUITests"
+      }
+    }
+  ],
+  "version": 1
+}

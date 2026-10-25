@@ -1,0 +1,422 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Profiles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile"
+          }
+        }
+      }
+    },
+    "Your hosts profiles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your hosts profiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Hosts-Profile"
+          }
+        }
+      }
+    },
+    "Profile management is being prepared.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile management is being prepared."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Profilverwaltung wird vorbereitet."
+          }
+        }
+      }
+    },
+    "System changes are not available in this build.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System changes are not available in this build."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systemänderungen sind in diesem Build nicht verfügbar."
+          }
+        }
+      }
+    },
+    "MacHosts": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacHosts"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacHosts"
+          }
+        }
+      }
+    },
+    "System file status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file status"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status der Systemdatei"
+          }
+        }
+      }
+    },
+    "Workspace could not be opened for normal use. Its data has been preserved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace could not be opened for normal use. Its data has been preserved."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Arbeitsbereich konnte nicht regulär geöffnet werden. Seine Daten bleiben erhalten."
+          }
+        }
+      }
+    },
+    "Observation does not change the system file or resolve an interrupted apply.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observation does not change the system file or resolve an interrupted apply."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Beobachtung verändert die Systemdatei nicht und klärt keine unterbrochene Übernahme."
+          }
+        }
+      }
+    },
+    "System file matches the last verified apply.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file matches the last verified apply."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei entspricht der letzten bestätigten Übernahme."
+          }
+        }
+      }
+    },
+    "System file changed externally.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file changed externally."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei wurde extern geändert."
+          }
+        }
+      }
+    },
+    "An interrupted apply requires recovery.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An interrupted apply requires recovery."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine unterbrochene Übernahme erfordert eine Wiederherstellung."
+          }
+        }
+      }
+    },
+    "System file has not been checked.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file has not been checked."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei wurde noch nicht geprüft."
+          }
+        }
+      }
+    },
+    "Current system state is unconfirmed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current system state is unconfirmed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der aktuelle Systemzustand ist unbestätigt."
+          }
+        }
+      }
+    },
+    "System file could not be read.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file could not be read."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei konnte nicht gelesen werden."
+          }
+        }
+      }
+    },
+    "System file has an unsupported file type or link count.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file has an unsupported file type or link count."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei hat einen nicht unterstützten Dateityp oder mehrere harte Verknüpfungen."
+          }
+        }
+      }
+    },
+    "System file exceeds the read limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file exceeds the read limit."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei überschreitet das Leselimit."
+          }
+        }
+      }
+    },
+    "System file changed while it was being read.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file changed while it was being read."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei wurde während des Lesens geändert."
+          }
+        }
+      }
+    },
+    "File observation is unavailable. Restart observation to try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File observation is unavailable. Restart observation to try again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Dateibeobachtung ist nicht verfügbar. Starte die Beobachtung erneut."
+          }
+        }
+      }
+    },
+    "Check again": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut prüfen"
+          }
+        }
+      }
+    },
+    "Restart observation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart observation"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beobachtung neu starten"
+          }
+        }
+      }
+    },
+    "Matching file contents alone cannot establish whether the interrupted apply completed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matching file contents alone cannot establish whether the interrupted apply completed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passende Dateiinhalte allein belegen nicht, ob die unterbrochene Übernahme abgeschlossen wurde."
+          }
+        }
+      }
+    },
+    "This build cannot check the system transaction records. The pending apply is preserved and further applies remain blocked.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This build cannot check the system transaction records. The pending apply is preserved and further applies remain blocked."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Build kann die Systemtransaktionsnachweise nicht prüfen. Die offene Übernahme bleibt erhalten; weitere Übernahmen bleiben gesperrt."
+          }
+        }
+      }
+    },
+    "The system file matches the state before the interrupted apply.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The system file matches the state before the interrupted apply."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei entspricht dem Stand vor der unterbrochenen Übernahme."
+          }
+        }
+      }
+    },
+    "The system file matches the intended result of the interrupted apply.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The system file matches the intended result of the interrupted apply."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei entspricht dem geplanten Ergebnis der unterbrochenen Übernahme."
+          }
+        }
+      }
+    },
+    "The system file matches neither state of the interrupted apply.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The system file matches neither state of the interrupted apply."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei entspricht keinem der beiden Stände der unterbrochenen Übernahme."
+          }
+        }
+      }
+    },
+    "The interrupted apply cannot be compared with a current file reading.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The interrupted apply cannot be compared with a current file reading."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für die unterbrochene Übernahme ist kein Vergleich mit einem aktuellen Dateistand möglich."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
