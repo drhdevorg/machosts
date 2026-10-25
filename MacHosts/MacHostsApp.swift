@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import HostsCore
 import HostsServices
 import SwiftUI
 
@@ -7,6 +8,7 @@ import SwiftUI
 @MainActor
 struct MacHostsApp: App {
   @State private var model = AppModel()
+  @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
   init() {
     guard geteuid() != 0 else { exit(64) }
@@ -14,42 +16,67 @@ struct MacHostsApp: App {
 
   var body: some Scene {
     WindowGroup("MacHosts") {
-      NavigationSplitView {
-        List {
-          Label("Profiles", systemImage: "doc.text")
+      ProfileWorkspaceView(model: model)
+        .task {
+          delegate.flush = { await model.editor?.flush() ?? true }
+          model.start()
         }
-        .navigationTitle("MacHosts")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220)
-      } detail: {
-        ContentUnavailableView {
-          Label("Your hosts profiles", systemImage: "network")
-        } description: {
-          Text("Profile management is being prepared.")
-          if SystemApplyStatus.availability == .unavailable {
-            Text("System changes are not available in this build.")
-              .accessibilityIdentifier("systemApplyUnavailable")
-          }
-          SystemObservationView(
-            model: model.system, refresh: model.refresh, restart: model.restartObservation)
-        }
-      }
-      .task { model.start() }
-      .onReceive(
-        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
-      ) { _ in
-        model.refresh()
-      }
-      .frame(minWidth: 640, minHeight: 400)
+        .onReceive(
+          NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+        ) { _ in model.refresh() }
+        .frame(minWidth: 760, minHeight: 500)
     }
-    .defaultSize(width: 900, height: 600)
+    .defaultSize(width: 1050, height: 740)
+    .commands {
+      CommandGroup(replacing: .newItem) {
+        Button("New profile") { model.newProfile() }
+          .keyboardShortcut("n")
+          .disabled(model.editor?.isReadOnly != false)
+        Button("Save drafts") { Task { _ = await model.editor?.flush() } }
+          .keyboardShortcut("s")
+      }
+    }
+  }
+}
+
+@MainActor
+private final class AppDelegate: NSObject, NSApplicationDelegate {
+  var flush: (() async -> Bool)?
+  private var terminating = false
+
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    guard !terminating else { return .terminateLater }
+    guard let flush else { return .terminateNow }
+    terminating = true
+    Task {
+      let saved = await flush()
+      if !saved {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Drafts could not be saved.")
+        alert.informativeText = String(
+          localized: "The app stays open so you can preserve your changes and retry saving.")
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.runModal()
+      }
+      terminating = false
+      sender.reply(toApplicationShouldTerminate: saved)
+    }
+    return .terminateLater
   }
 }
 
 /// One lifetime per app, shared by all windows. Closing a window does not cancel
 /// observation or release the workspace's process lock.
 @MainActor @Observable
-private final class AppModel {
+final class AppModel {
+  var editor: ProfileWorkspaceModel?
+  var selection: UUID?
   let system = SystemObservationModel()
+  #if DEBUG
+    let isPrivateTest = ProcessInfo.processInfo.arguments.contains("--ui-testing-local-workspace")
+  #else
+    let isPrivateTest = false
+  #endif
   private var store: WorkspaceStore?
   private var started = false
   private var openingWorkspace = false
@@ -58,7 +85,7 @@ private final class AppModel {
   func start() {
     guard !started else { return }
     started = true
-    observationTask = Task { await system.run() }
+    if !isPrivateTest { observationTask = Task { await system.run() } }
     Task { await loadWorkspace() }
   }
 
@@ -67,12 +94,26 @@ private final class AppModel {
     openingWorkspace = true
     defer { openingWorkspace = false }
     do {
-      let opened = try await WorkspaceStore.openDefault()
+      let opened: WorkspaceStore
+      #if DEBUG
+        if isPrivateTest {
+          opened = try await PrivateUITestWorkspace.open()
+        } else {
+          opened = try await WorkspaceStore.openDefault()
+        }
+      #else
+        opened = try await WorkspaceStore.openDefault()
+      #endif
       store = opened
+      editor = try await ProfileWorkspaceModel.open(store: opened)
       system.updateWorkspace(await opened.state())
     } catch {
       system.updateWorkspace(nil)
     }
+  }
+
+  func newProfile() {
+    selection = editor?.create(name: String(localized: "New profile"))
   }
 
   func refresh() {
@@ -87,12 +128,13 @@ private final class AppModel {
   }
 
   func restartObservation() {
+    guard !isPrivateTest else { return }
     observationTask?.cancel()
     observationTask = Task { await system.run() }
   }
 }
 
-private struct SystemObservationView: View {
+struct SystemObservationView: View {
   let model: SystemObservationModel
   let refresh: () -> Void
   let restart: () -> Void
@@ -161,3 +203,15 @@ private struct SystemObservationView: View {
     }
   }
 }
+
+#if DEBUG
+  /// An explicit UI-test mode with a fresh private directory and no system observation.
+  /// No supplied path, authorization adapter or simulated apply is accepted.
+  private actor PrivateUITestWorkspace {
+    static func open() async throws -> WorkspaceStore {
+      let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+        "machosts-ui-" + UUID().uuidString, isDirectory: true)
+      return try await WorkspaceStore.open(directory: directory)
+    }
+  }
+#endif

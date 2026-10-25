@@ -36,7 +36,8 @@ public actor WorkspaceAutosave {
 
   deinit { timer?.cancel() }
 
-  public func schedule(_ draft: Workspace) throws {
+  /// A caller with its own debounce can retain a draft without starting a second timer.
+  public func schedule(_ draft: Workspace, automaticallySave: Bool = true) throws {
     try draft.validate()
     let latest = pending ?? inFlight?.draft ?? saved.draft
     guard draft != latest else { return }
@@ -44,6 +45,10 @@ public actor WorkspaceAutosave {
     pending = draft
     lastFailure = nil
     timer?.cancel()
+    guard automaticallySave else {
+      timer = nil
+      return
+    }
     let delay = delay
     timer = Task { [weak self] in
       do {
