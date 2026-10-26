@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 struct HostsTextExchangeView: View {
   let editor: ProfileWorkspaceModel
   @State private var profile: Profile?
+  @State private var workspace: Workspace
   let imported: (UUID) -> Void
   @Environment(\.dismiss) private var dismiss
   @State private var service = HostsTextExchange()
@@ -22,6 +23,7 @@ struct HostsTextExchangeView: View {
   init(editor: ProfileWorkspaceModel, profile: Profile?, imported: @escaping (UUID) -> Void) {
     self.editor = editor
     _profile = State(initialValue: profile)
+    _workspace = State(initialValue: editor.workspace)
     self.imported = imported
   }
 
@@ -71,6 +73,8 @@ struct HostsTextExchangeView: View {
             .foregroundStyle(.red)
         }
       }
+      Divider()
+      WorkspaceJSONExchangeView(editor: editor, workspace: workspace, busy: $busy)
       Divider()
       if let profile {
         Text(verbatim: profile.name).fontWeight(.medium)
@@ -178,5 +182,233 @@ struct HostsTextExchangeView: View {
       String(
         localized: "Export failed. A partial new file may remain; choose a new filename to retry.")
     }
+  }
+}
+
+/// Portable JSON is append-only here; replacement needs a separate backup/review flow.
+private struct WorkspaceJSONExchangeView: View {
+  let editor: ProfileWorkspaceModel
+  let workspace: Workspace
+  @State private var service = WorkspaceExchange()
+  @State private var review: WorkspaceExchangeDocument?
+  @State private var selected: UUID?
+  @State private var includedProfiles: Set<UUID> = []
+  @State private var includeAllFolders = true
+  @State private var inspected: HostsTextImport?
+  @Binding var busy: Bool
+  @State private var message: String?
+  @State private var showingReview = false
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text("MacHosts JSON").font(.headline)
+      Text(
+        "Exchange all current profiles and folders. Remote sources become local cached copies. Activation, trash and system history are omitted."
+      )
+      Text("JSON export uses the workspace captured when this window opened.")
+      HStack {
+        Button("Review JSON import…") { chooseImport() }
+          .accessibilityIdentifier("chooseJSONImport")
+          .disabled(busy || editor.isReadOnly)
+        Button("Export workspace JSON…") { export() }
+          .accessibilityIdentifier("exportWorkspaceJSON")
+          .disabled(busy)
+      }
+      if busy { ProgressView() }
+      if let message { Text(message).accessibilityIdentifier("jsonExchangeMessage") }
+    }
+    .sheet(isPresented: $showingReview) {
+      if let review {
+        let folderNames = Dictionary(uniqueKeysWithValues: review.folders.map { ($0.id, $0.name) })
+        VStack(alignment: .leading, spacing: 12) {
+          Text("Review JSON import").font(.title2)
+          Text(
+            "Selected profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced."
+          )
+          Text("Profiles: \(review.profiles.count), folders: \(review.folders.count)")
+          HStack {
+            Button("Select all profiles") { includedProfiles = Set(review.profiles.map(\.id)) }
+            Button("Deselect all profiles") { includedProfiles = [] }
+            Text("Selected profiles: \(includedProfiles.count)")
+          }
+          Toggle("Include all folders, including empty folders", isOn: $includeAllFolders)
+          Text("Required parent folders are always included with selected profiles.")
+            .font(.caption)
+          if !review.folders.isEmpty {
+            DisclosureGroup("Folders in file") {
+              ScrollView {
+                LazyVStack(alignment: .leading) {
+                  ForEach(review.folders) { folder in
+                    let parent = folder.parentID.flatMap { folderNames[$0] }
+                    Text(verbatim: parent.map { $0 + " / " + folder.name } ?? folder.name)
+                  }
+                }
+              }.frame(maxHeight: 100)
+            }
+          }
+          Picker("Profile source", selection: $selected) {
+            ForEach(review.profiles, id: \.id) { profile in
+              Text(verbatim: profile.name).tag(Optional(profile.id))
+            }
+          }
+          Text(
+            "Same-name profiles: \(review.profiles.filter { imported in includedProfiles.contains(imported.id) && editor.workspace.profiles.contains { $0.name == imported.name } }.count)"
+          )
+          if let profile = review.profiles.first(where: { $0.id == selected }) {
+            Toggle(
+              "Include this profile",
+              isOn: Binding(
+                get: { includedProfiles.contains(profile.id) },
+                set: { included in
+                  if included {
+                    includedProfiles.insert(profile.id)
+                  } else {
+                    includedProfiles.remove(profile.id)
+                  }
+                })
+            )
+            .accessibilityIdentifier("includeJSONProfile")
+            Text(
+              "Review the complete source before importing. Invalid lines remain editable diagnostics."
+            )
+            NativeProfileEditor(source: profile.source, isEditable: false, jump: nil) { _ in
+              profile.source
+            }.id(profile.id)
+            if let inspected, inspected.source == profile.source,
+              !inspected.document.diagnostics.isEmpty
+            {
+              ScrollView {
+                VStack(alignment: .leading) {
+                  ForEach(
+                    Array(inspected.document.diagnostics.prefix(20).enumerated()), id: \.offset
+                  ) { _, diagnostic in
+                    HStack {
+                      if let line = diagnostic.line { Text("Line \(line):") }
+                      Text(diagnosticText(diagnostic.code))
+                    }
+                  }
+                  if inspected.document.diagnostics.count > 20 {
+                    Text("Only the first 20 diagnostics are shown.")
+                  }
+                }
+              }.frame(maxHeight: 100)
+            }
+          }
+          if let message { Text(message).foregroundStyle(.red) }
+          HStack {
+            Button("Cancel") { showingReview = false }.keyboardShortcut(.cancelAction)
+            Spacer()
+            Button("Append inactive profiles") {
+              do {
+                let subset = try review.selecting(
+                  profileIDs: includedProfiles, includeAllFolders: includeAllFolders)
+                if editor.importWorkspace(subset) {
+                  showingReview = false
+                  message = String(localized: "JSON import added. Profiles remain inactive.")
+                } else {
+                  message = String(
+                    localized:
+                      "Import could not be added. Check the profile name and workspace limits.")
+                }
+              } catch { message = errorText(error) }
+            }.disabled(
+              editor.isReadOnly
+                || (includedProfiles.isEmpty && (!includeAllFolders || review.folders.isEmpty)))
+          }
+        }.padding(24).frame(width: 720, height: 720)
+          .task(id: selected) {
+            inspected = nil
+            guard let source = review.profiles.first(where: { $0.id == selected })?.source else {
+              return
+            }
+            do {
+              let result = try await service.inspect(source)
+              guard !Task.isCancelled else { return }
+              inspected = result
+            } catch { message = errorText(error) }
+          }
+      }
+    }
+  }
+
+  private func chooseImport() {
+    let panel = NSOpenPanel()
+    panel.canChooseDirectories = false
+    panel.allowsMultipleSelection = false
+    panel.allowedContentTypes = [.json]
+    busy = true
+    panel.begin { response in
+      guard response == .OK, let url = panel.url else {
+        busy = false
+        return
+      }
+      Task { @MainActor in
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+          if scoped { url.stopAccessingSecurityScopedResource() }
+          busy = false
+        }
+        do {
+          review = try await service.read(url)
+          selected = review?.profiles.first?.id
+          includedProfiles = Set(review?.profiles.map(\.id) ?? [])
+          includeAllFolders = true
+          message = nil
+          showingReview = true
+        } catch { message = errorText(error) }
+      }
+    }
+  }
+
+  private func export() {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.json]
+    panel.nameFieldStringValue = "MacHosts.json"
+    busy = true
+    panel.begin { response in
+      guard response == .OK, let url = panel.url else {
+        busy = false
+        return
+      }
+      Task { @MainActor in
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+          if scoped { url.stopAccessingSecurityScopedResource() }
+          busy = false
+        }
+        do {
+          let document = try await service.capture(workspace)
+          try await service.writeNew(document, to: url)
+          message = String(localized: "Export saved.")
+        } catch { message = errorText(error) }
+      }
+    }
+  }
+
+  private func errorText(_ error: any Error) -> String {
+    if let failure = error as? WorkspaceExchangeFailure {
+      return switch failure {
+      case .unsupportedVersion: String(localized: "This MacHosts JSON version is not supported.")
+      case .invalidDocument:
+        String(localized: "The JSON document is invalid. Nothing was imported.")
+      }
+    }
+    if let failure = error as? HostsTextExchangeFailure {
+      return switch failure {
+      case .destinationExists:
+        String(localized: "That filename already exists. Choose a new filename.")
+      case .writeFailed:
+        String(
+          localized: "Export failed. A partial new file may remain; choose a new filename to retry."
+        )
+      case .sizeLimit:
+        String(
+          localized:
+            "JSON must fit the 32 MiB workspace and 1 MiB profile limits. Nothing was truncated.")
+      default:
+        String(localized: "The JSON file could not be read completely. Nothing was imported.")
+      }
+    }
+    return String(localized: "The JSON document is invalid. Nothing was imported.")
   }
 }

@@ -35,6 +35,10 @@ public actor HostsTextExchange {
   public init() {}
 
   public func read(_ url: URL) throws -> HostsTextImport {
+    return try HostsTextImport(data: readData(url, limit: HostsLimits.profileBytes))
+  }
+
+  func readData(_ url: URL, limit: Int) throws -> Data {
     guard url.isFileURL else { throw HostsTextExchangeFailure.unreadable }
     let fd = open(url.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
     guard fd >= 0 else { throw HostsTextExchangeFailure.unreadable }
@@ -43,7 +47,7 @@ public actor HostsTextExchange {
     guard fstat(fd, &metadata) == 0, metadata.st_mode & S_IFMT == S_IFREG else {
       throw HostsTextExchangeFailure.unreadable
     }
-    guard metadata.st_size <= HostsLimits.profileBytes else {
+    guard metadata.st_size >= 0, metadata.st_size <= limit else {
       throw HostsTextExchangeFailure.sizeLimit
     }
     var data = Data()
@@ -51,16 +55,16 @@ public actor HostsTextExchange {
     while true {
       try Task.checkCancellation()
       let count = Darwin.read(
-        fd, &buffer, min(buffer.count, HostsLimits.profileBytes + 1 - data.count))
+        fd, &buffer, min(buffer.count, limit + 1 - data.count))
       if count < 0 {
         if errno == EINTR { continue }
         throw HostsTextExchangeFailure.unreadable
       }
       if count == 0 { break }
       data.append(contentsOf: buffer.prefix(count))
-      guard data.count <= HostsLimits.profileBytes else { throw HostsTextExchangeFailure.sizeLimit }
+      guard data.count <= limit else { throw HostsTextExchangeFailure.sizeLimit }
     }
-    return try HostsTextImport(data: data)
+    return data
   }
 
   public func data(source: String, mode: HostsTextExportMode) throws -> Data {
@@ -90,7 +94,11 @@ public actor HostsTextExchange {
   /// The destination must be new. O_EXCL also refuses dangling symlinks/hardlinks,
   /// including aliases to the workstation hosts file; no overwrite fallback exists.
   public func writeNew(_ data: Data, to url: URL) throws {
-    guard url.isFileURL, data.count <= HostsLimits.profileBytes else {
+    try writeNewData(data, to: url, limit: HostsLimits.profileBytes)
+  }
+
+  func writeNewData(_ data: Data, to url: URL, limit: Int) throws {
+    guard url.isFileURL, data.count <= limit else {
       throw HostsTextExchangeFailure.writeFailed
     }
     let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)

@@ -11,6 +11,11 @@ tests and Release/Debug test builds. Imports preserve reviewed bytes and create 
 profiles; export requires a new filename. Native file-panel acceptance and remaining
 phase-7 work are open; see [phase 7](verification/phase-7.md).
 
+Latest JSON increment: version-1 source/folder export and reviewed inactive append
+passed 146 package tests, Release/Debug test builds, formatting, localization coverage
+and Release signature verification. Native panel/review acceptance remains open.
+See [phase 7](verification/phase-7.md) and the [format contract](JSON-EXCHANGE.md).
+
 ## Open the project
 
 Open `MacHosts.xcodeproj` with the shared `MacHosts` scheme. The local package `Packages/MacHostsKit` supplies `HostsCore`, `HostsServices`, and `HostsSystem`. There are no external dependencies or project generators. The app target embeds `MacHostsApply` under `Contents/MacOS`.
@@ -116,3 +121,11 @@ Entry switches filter original record text literally and case-insensitively, inc
 ### Preview source navigation
 
 Current profile origins in added mappings, conflicts, and parser diagnostics link to exact source lines in the initiating window. Frozen-input and current-digest checks reject stale navigation; removed mappings retain informational provenance. Referenced profiles are indexed once on the preview actor. The native preview now includes observation revision to invalidate equal-byte restarts/read failures. Full 134-test package run and nine focused preview tests passed; Release/Debug test builds passed. Native sheet/focus/VoiceOver acceptance remains open; see the latest [phase-5 evidence](verification/phase-5.md).
+
+### Selective JSON import
+
+The JSON review now supports per-profile inclusion, select/deselect all, and either
+all folders or only required ancestor folders. Complete input validation precedes
+selection; the current workspace budget is checked atomically when confirming.
+The full 149-test package run passed. Release/Debug build and native acceptance
+evidence is recorded in [phase 7](verification/phase-7.md).

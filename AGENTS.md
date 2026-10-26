@@ -46,3 +46,7 @@ Preview source navigation was added October 26: added/conflicting mappings and p
 
 
 Local `.hosts` text exchange was added October 26: bounded UTF-8 reads, full source/diagnostic review, atomic new inactive profile imports, frozen source/enabled-entry exports, and exclusive new-file writes refusing all existing destinations/links. Full 139-test package run, five focused exchange tests, formatting, localization coverage, Release/Debug test builds, and Release signature checks passed. Native file-panel/VoiceOver acceptance, remote/JSON/SwitchHosts exchange and gates 0/4/5/7 remain open; see `docs/verification/phase-7.md`.
+
+Versioned MacHosts JSON exchange was added October 26: bounded version-1 source/folder export, native review and inactive append with fresh IDs/remapped hierarchy, atomic combined budgets, frozen exports and exclusive new-file writes. Full 146-test package run, formatting, localization coverage, Release/Debug test builds and Release signature verification passed. Native JSON file-panel/review acceptance, replacement imports, remote/SwitchHosts and gates 0/4/5/7 remain open; see `docs/verification/phase-7.md` and `docs/JSON-EXCHANGE.md`.
+
+Selective MacHosts JSON import was added October 26: per-profile inclusion, select/deselect all, optional empty-folder preservation, automatic ancestor inclusion, and current-budget atomic append. Full 149-test package run passed. Build, localization, signature and native acceptance evidence is in `docs/verification/phase-7.md`; gates 0/4/5/7 remain open.

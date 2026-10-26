@@ -2,7 +2,7 @@
 
 As of October 25, 2026. Product direction is confirmed. Phase 0 is prepared locally, including request validation, size limits, descriptor-checked reads, journaled fixture restore, unsafe-artifact preflight, rejection of files writable by others, and consistent/unambiguous stored transaction JSON. Privileged evidence remains outstanding. VM tests are postponed at the user's request; [ADR 0002](decisions/0002-deferred-gate-0.md) explicitly defers gate 0.
 
-Phases 1–3 are implemented and locally checked; gates 2 and 3 passed locally, while formal phase-1 clean-checkout/CI evidence remains open. Phase 4 includes coordinator, persistent intents, schema-2 migration, private transaction engine, receipt/readback recovery, actual process termination/restart, observation, shared recovery locking, and internal orphan retirement. Production transactions and gate 4 remain open. Phase 5 includes local profiles, native editor, autosave, trash, folders, cross-profile search, colors/line numbers, read-only system contents, frozen read-only change previews with conflict provenance, and explicit local workspace recovery. Latest evidence: 139 package tests, formatting, and Release/Debug test builds passed, including independent `.hosts` exchange ([phase 7](verification/phase-7.md)); the previous missing CoreSimulator framework build blocker no longer reproduces. Full native acceptance and gate 5 remain open. Reports: [phase 0](verification/phase-0.md), [phase 4](verification/phase-4.md), [phase 5](verification/phase-5.md).
+Phases 1–3 are implemented and locally checked; gates 2 and 3 passed locally, while formal phase-1 clean-checkout/CI evidence remains open. Phase 4 includes coordinator, persistent intents, schema-2 migration, private transaction engine, receipt/readback recovery, actual process termination/restart, observation, shared recovery locking, and internal orphan retirement. Production transactions and gate 4 remain open. Phase 5 includes local profiles, native editor, autosave, trash, folders, cross-profile search, colors/line numbers, read-only system contents, frozen read-only change previews with conflict provenance, and explicit local workspace recovery. Latest evidence: 149 package tests, formatting, and Release/Debug test builds passed, including independent `.hosts`/version-1 JSON exchange ([phase 7](verification/phase-7.md)); the previous missing CoreSimulator framework build blocker no longer reproduces. Full native acceptance and gate 5 remain open. Reports: [phase 0](verification/phase-0.md), [phase 4](verification/phase-4.md), [phase 5](verification/phase-5.md).
 
 ## Workflow and gate rules
 
@@ -30,7 +30,7 @@ Phases 1–3 may be fully developed, and phases 4–7 may use private fixtures/a
 | 4 | Production apply/backup/recovery | Partial: coordinator/private engine, process lifecycles, observation, durable orphan retirement verified on fixtures; gate open | 2, 3; gate 0 for real integration |
 | 5 | Native app, editor, main workflows | Partial: profiles, folders, search, styled editor, system contents, frozen read-only preview, local workspace recovery; native acceptance/gate open | 4 |
 | 6 | Menu bar, login start, system diagnostics | Open | 5 |
-| 7 | Remote profiles and migration/export | Partial: bounded `.hosts` import/export; remote/JSON/SwitchHosts and native acceptance open | 3, 5 |
+| 7 | Remote profiles and migration/export | Partial: bounded `.hosts` and version-1 JSON selective append/export; remote/SwitchHosts/replacement and native acceptance open | 3, 5 |
 | 8 | Hardening, accessibility, performance, beta | Open | 6, 7 |
 | 9 | Release artifact and production acceptance | Open | 8 |
 
@@ -161,7 +161,7 @@ Preview source links now connect current mapping/conflict/diagnostic origins to 
 
 ## Phase 7 – Remote profiles and exchange/migration
 
-**Partial status (October 26):** native `.hosts` import review/inactive insertion and explicit source/enabled-entry export implemented. Full 139 package tests and Release/Debug test builds passed; native file-panel acceptance and remaining exchange/remote work remain open. [Evidence](verification/phase-7.md). Gate 7 not passed.
+**Partial status (October 26):** native `.hosts` import review/inactive insertion, explicit source/enabled-entry export, and version-1 JSON review/selective append/export implemented. Full 149 package tests and Release/Debug test builds passed; native file-panel acceptance and remaining exchange/remote work remain open. [Evidence](verification/phase-7.md). Gate 7 not passed.
 
 **Deliverables:** bounded HTTPS downloads, last valid cache, optional in-process refresh, own export format, documented SwitchHosts import.
 

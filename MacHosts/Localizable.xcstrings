@@ -2944,6 +2944,406 @@
           }
         }
       }
+    },
+    "MacHosts JSON": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacHosts JSON"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacHosts JSON"
+          }
+        }
+      }
+    },
+    "Exchange all current profiles and folders. Remote sources become local cached copies. Activation, trash and system history are omitted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange all current profiles and folders. Remote sources become local cached copies. Activation, trash and system history are omitted."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle aktuellen Profile und Ordner austauschen. Remote-Quellen werden zu lokalen Cache-Kopien. Aktivierung, Papierkorb und Systemverlauf werden ausgelassen."
+          }
+        }
+      }
+    },
+    "Review JSON import…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review JSON import…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON-Import prüfen …"
+          }
+        }
+      }
+    },
+    "Export workspace JSON…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export workspace JSON…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitsbereich als JSON exportieren …"
+          }
+        }
+      }
+    },
+    "Review JSON import": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review JSON import"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON-Import prüfen"
+          }
+        }
+      }
+    },
+    "All profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Profile werden inaktiv mit neuen IDs angefügt. Vorhandene Profile und gleichnamige Ordner bleiben getrennt. Nichts wird ersetzt."
+          }
+        }
+      }
+    },
+    "Profiles: %lld, folders: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profiles: %lld, folders: %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile: %lld, Ordner: %lld"
+          }
+        }
+      }
+    },
+    "Same-name profiles: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same-name profiles: %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gleichnamige Profile: %lld"
+          }
+        }
+      }
+    },
+    "Imported folders": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported folders"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importierte Ordner"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Append inactive profiles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Append inactive profiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inaktive Profile anfügen"
+          }
+        }
+      }
+    },
+    "JSON import added. Profiles remain inactive.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON import added. Profiles remain inactive."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON-Import hinzugefügt. Die Profile bleiben inaktiv."
+          }
+        }
+      }
+    },
+    "This MacHosts JSON version is not supported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This MacHosts JSON version is not supported."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese MacHosts-JSON-Version wird nicht unterstützt."
+          }
+        }
+      }
+    },
+    "The JSON document is invalid. Nothing was imported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The JSON document is invalid. Nothing was imported."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das JSON-Dokument ist ungültig. Nichts wurde importiert."
+          }
+        }
+      }
+    },
+    "JSON must fit the 32 MiB workspace and 1 MiB profile limits. Nothing was truncated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON must fit the 32 MiB workspace and 1 MiB profile limits. Nothing was truncated."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON muss die Grenzen von 32 MiB pro Arbeitsbereich und 1 MiB pro Profil einhalten. Nichts wurde gekürzt."
+          }
+        }
+      }
+    },
+    "The JSON file could not be read completely. Nothing was imported.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The JSON file could not be read completely. Nothing was imported."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die JSON-Datei konnte nicht vollständig gelesen werden. Nichts wurde importiert."
+          }
+        }
+      }
+    },
+    "JSON export uses the workspace captured when this window opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON export uses the workspace captured when this window opened."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der JSON-Export verwendet den beim Öffnen dieses Fensters erfassten Arbeitsbereich."
+          }
+        }
+      }
+    },
+    "Selected profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewählte Profile werden mit neuen Identitäten inaktiv hinzugefügt. Bestehende Profile und gleichnamige Ordner bleiben getrennt. Nichts wird ersetzt."
+          }
+        }
+      }
+    },
+    "Select all profiles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select all profiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Profile auswählen"
+          }
+        }
+      }
+    },
+    "Deselect all profiles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deselect all profiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Profile abwählen"
+          }
+        }
+      }
+    },
+    "Selected profiles: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected profiles: %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewählte Profile: %lld"
+          }
+        }
+      }
+    },
+    "Include all folders, including empty folders": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include all folders, including empty folders"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Ordner einschließlich leerer Ordner übernehmen"
+          }
+        }
+      }
+    },
+    "Required parent folders are always included with selected profiles.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Required parent folders are always included with selected profiles."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benötigte übergeordnete Ordner werden immer mit den ausgewählten Profilen übernommen."
+          }
+        }
+      }
+    },
+    "Include this profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include this profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Profil übernehmen"
+          }
+        }
+      }
+    },
+    "Folders in file": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders in file"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner in der Datei"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

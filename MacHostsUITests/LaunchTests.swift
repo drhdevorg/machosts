@@ -46,6 +46,8 @@ final class LaunchTests: XCTestCase {
     app.buttons["textExchange"].click()
     XCTAssertTrue(app.buttons["chooseHostsImport"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["exportHostsText"].isEnabled)
+    XCTAssertTrue(app.buttons["chooseJSONImport"].isEnabled)
+    XCTAssertTrue(app.buttons["exportWorkspaceJSON"].isEnabled)
     app.buttons["Done"].click()
     XCTAssertEqual(source.value as? String, "192.0.2.41 exchange.example\n")
     XCTAssertEqual(app.checkBoxes["profileEnabled"].value as? Int, 0)

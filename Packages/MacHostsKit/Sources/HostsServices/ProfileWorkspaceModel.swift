@@ -96,6 +96,12 @@ public final class ProfileWorkspaceModel {
     return change { $0.profiles.append(profile) } ? profile.id : nil
   }
 
+  /// Appends a reviewed portable snapshot as a single autosaved draft revision.
+  @discardableResult
+  public func importWorkspace(_ document: WorkspaceExchangeDocument) -> Bool {
+    change { $0 = try document.appending(to: $0) }
+  }
+
   public func rename(_ id: UUID, name: String) {
     update(id) { $0.name = name }
   }
