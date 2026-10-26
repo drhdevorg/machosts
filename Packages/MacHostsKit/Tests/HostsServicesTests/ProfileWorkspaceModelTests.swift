@@ -365,3 +365,188 @@ private final class EditorSaveFault: Sendable {
   #expect(model.workspace.profiles.filter { $0.folderID == folder }.map(\.id) == [first, last])
   #expect(await model.flush())
 }
+
+@Test @MainActor func editorRecoveryRequiresExplicitActionAndResumesEditing() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let saved = Workspace(revision: 1, profiles: [Profile(name: "Saved", source: "# café\r\n")])
+  do {
+    let store = try await WorkspaceStore.open(directory: fixture.directory)
+    _ = try await store.saveDraft(saved, expectedGeneration: 0)
+    var newer = saved
+    newer.revision = 2
+    newer.profiles[0].source = "# newer"
+    _ = try await store.saveDraft(newer, expectedGeneration: 1)
+  }
+  let file = fixture.directory.appendingPathComponent("workspace.json")
+  let broken = Data("{truncated".utf8)
+  try broken.write(to: file)
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let model = try await ProfileWorkspaceModel.open(store: store)
+  #expect(model.canRecoverPrevious && model.isReadOnly)
+  #expect(model.persisted.recoveryCandidate?.draft == saved)
+  #expect(model.create(name: "Blocked") == nil)
+  #expect(try Data(contentsOf: file) == broken)
+  #expect(await model.recoverPrevious())
+  #expect(!model.isReadOnly && !model.canRecoverPrevious && !model.recoveryFailed)
+  #expect(model.workspace == saved)
+  #expect(model.persisted.snapshot?.applied == nil)
+  let archives = try FileManager.default.contentsOfDirectory(
+    at: fixture.directory, includingPropertiesForKeys: nil
+  ).filter { $0.lastPathComponent.hasPrefix("workspace.recovery-") }
+  #expect(archives.count == 1)
+  #expect(try Data(contentsOf: #require(archives.first)) == broken)
+  model.setSource(saved.profiles[0].id, source: "# recovered and edited")
+  #expect(await model.flush())
+  #expect(await store.state().snapshot?.draft == model.workspace)
+  #expect(!(await model.recoverPrevious()))
+}
+
+@Test @MainActor func editorRecoveryRejectsChangedBytesAndUnsupportedSchemas() async throws {
+  for unsupported in [false, true] {
+    let fixture = EditorFixture()
+    defer { fixture.cleanup() }
+    do {
+      let store = try await WorkspaceStore.open(directory: fixture.directory)
+      _ = try await store.saveDraft(
+        Workspace(revision: 1, profiles: [Profile(name: "Previous")]), expectedGeneration: 0)
+      _ = try await store.saveDraft(Workspace(revision: 2), expectedGeneration: 1)
+    }
+    let file = fixture.directory.appendingPathComponent("workspace.json")
+    let original = Data((unsupported ? "{\"schemaVersion\":99}" : "broken").utf8)
+    try original.write(to: file)
+    let store = try await WorkspaceStore.open(directory: fixture.directory)
+    let model = try await ProfileWorkspaceModel.open(store: store)
+    #expect(model.canRecoverPrevious == !unsupported)
+    let preserved = unsupported ? original : Data("external change after review".utf8)
+    if !unsupported { try preserved.write(to: file) }
+    #expect(!(await model.recoverPrevious()))
+    #expect(model.isReadOnly && !model.isRecovering)
+    #expect(model.workspace.profiles.isEmpty)
+    #expect(try Data(contentsOf: file) == preserved)
+    #expect(model.recoveryFailed == !unsupported)
+  }
+}
+
+@Test @MainActor func editorRecoveryWriteFailureKeepsCandidateAndReadOnlyState() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  do {
+    let store = try await WorkspaceStore.open(directory: fixture.directory)
+    _ = try await store.saveDraft(
+      Workspace(revision: 1, profiles: [Profile(name: "Preserved")]), expectedGeneration: 0)
+    _ = try await store.saveDraft(Workspace(revision: 2), expectedGeneration: 1)
+  }
+  let file = fixture.directory.appendingPathComponent("workspace.json")
+  let broken = Data("broken".utf8)
+  try broken.write(to: file)
+  let store = try await WorkspaceStore.open(directory: fixture.directory) { point in
+    if point == .beforeRename { throw WorkspaceStoreFailure.io(28) }
+  }
+  let model = try await ProfileWorkspaceModel.open(store: store)
+  #expect(!(await model.recoverPrevious()))
+  #expect(model.recoveryFailed && model.isReadOnly && !model.isRecovering)
+  #expect(model.persisted.recoveryCandidate?.draft.profiles.first?.name == "Preserved")
+  #expect(model.create(name: "Rejected") == nil)
+  #expect(try Data(contentsOf: file) == broken)
+}
+
+@Test @MainActor func trashReviewAndRestorePreserveSavedSourceAndRemoteIdentity() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let source = "# café 🐈\r\n192.0.2.8 trash.example\r\ninvalid draft\r\n"
+  let folder = ProfileFolder(name: "Former folder")
+  let profile = Profile(
+    name: "Remote archive", folderID: folder.id, kind: .remote, source: source, isEnabled: true)
+  do {
+    let store = try await WorkspaceStore.open(directory: fixture.directory)
+    _ = try await store.saveDraft(
+      Workspace(revision: 1, profiles: [profile], folders: [folder]), expectedGeneration: 0)
+    let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+    model.delete(profile.id)
+    model.removeFolder(folder.id)
+    #expect(await model.flush())
+  }
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+  let before = model.workspace
+  let item = try #require(model.workspace.trash.first)
+  #expect(item.profile == profile)
+  #expect(!model.hasUnsavedChanges)
+  #expect(model.workspace == before)
+  model.restore(profile.id)
+  let restored = try #require(model.workspace.profiles.first)
+  #expect(restored.id == profile.id)
+  #expect(restored.source == source)
+  #expect(restored.kind == .remote)
+  #expect(restored.folderID == nil)
+  #expect(!restored.isEnabled)
+  #expect(model.workspace.trash.isEmpty)
+  #expect(await model.flush())
+  #expect(await store.state().snapshot?.draft == model.workspace)
+  #expect(model.persisted.snapshot?.applied == nil)
+  #expect(model.persisted.snapshot?.pendingApply == nil)
+}
+
+@Test @MainActor func restoringTrashAtCombinedProfileLimitPreservesBothCollections() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let archived = Profile(name: "Archived", source: "# preserved\r\n", isEnabled: true)
+  let profiles = (0..<499).map { Profile(name: "Profile \($0)") }
+  _ = try await store.saveDraft(
+    Workspace(revision: 1, profiles: profiles, trash: [.init(profile: archived, formerIndex: 0)]),
+    expectedGeneration: 0)
+  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+  let before = model.workspace
+  #expect(model.create(name: "Over limit") == nil)
+  #expect(model.editFailure == .limitExceeded)
+  #expect(model.workspace == before)
+  #expect(!model.hasUnsavedChanges)
+  model.restore(archived.id)
+  #expect(model.editFailure == nil)
+  #expect(model.workspace.profiles.first?.id == archived.id)
+  #expect(model.workspace.profiles.first?.isEnabled == false)
+  #expect(model.workspace.trash.isEmpty)
+  #expect(model.workspace.profiles.count == 500)
+  #expect(await model.flush())
+}
+
+@Test @MainActor func profileOrderingAvailabilityTracksSiblingsAndPersistsActions() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+  let folder = try #require(model.createFolder(name: "Group"))
+  let first = try #require(model.create(name: "First"))
+  let unrelated = try #require(model.create(name: "Unfiled"))
+  let last = try #require(model.create(name: "Last"))
+  model.moveToFolder(first, folderID: folder)
+  model.moveToFolder(last, folderID: folder)
+  model.setSource(first, source: "# café\r\n192.0.2.5 alias.example\r\n")
+  model.setEnabled(first, enabled: true)
+  #expect(!model.canMove(first, by: -1))
+  #expect(model.canMove(first, by: 1))
+  #expect(!model.canMove(unrelated, by: 1))
+  #expect(!model.canMove(UUID(), by: -1))
+  #expect(!model.canMove(last, by: Int.max))
+  #expect(!model.canMove(first, by: 0))
+  let original = model.workspace
+  model.move(first, by: -1)
+  #expect(model.workspace == original)
+  let copy = try #require(model.duplicate(first, name: "First"))
+  #expect(model.workspace.profiles.first { $0.id == copy }?.folderID == folder)
+  #expect(model.workspace.profiles.first { $0.id == copy }?.isEnabled == false)
+  model.move(copy, by: 1)
+  #expect(!model.canMove(copy, by: 1))
+  model.delete(last)
+  #expect(model.canMove(copy, by: -1))
+  model.moveToFolder(copy, folderID: nil)
+  #expect(model.canMove(copy, by: -1))
+  #expect(!model.canMove(first, by: 1))
+  #expect(await model.flush())
+  let saved = try #require(await store.state().snapshot)
+  #expect(saved.draft == model.workspace)
+  #expect(saved.applied == nil && saved.pendingApply == nil)
+  #expect(saved.draft.profiles.first { $0.id == copy }?.source == original.profiles[0].source)
+}

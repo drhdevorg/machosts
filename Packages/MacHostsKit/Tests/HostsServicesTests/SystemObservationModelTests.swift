@@ -191,3 +191,78 @@ private struct ObservationFixture {
   await restarted.value
   #expect(model.status == .unconfirmed)
 }
+
+@Test @MainActor func systemContentsFollowReadsAndDisappearAfterFailureOrCancellation() async throws
+{
+  let fixture = try ObservationFixture()
+  defer { fixture.cleanup() }
+  let source =
+    "# 🌍 foreign\r\n" + HostsSyntax.begin + "\r\n192.0.2.1 fixture.example\r\n"
+    + HostsSyntax.end + "\r\n"
+  let bytes = Data(source.utf8)
+  try bytes.write(to: fixture.file)
+  let monitor = SystemFileMonitor(directory: fixture.directory)
+  let model = SystemObservationModel(monitor: monitor)
+  let task = Task { await model.run() }
+  defer { task.cancel() }
+  try await waitForObservation { model.contents?.source == source }
+  #expect(model.contents?.digest == ContentDigest(bytes))
+  #expect(model.contents?.diagnostics.isEmpty == true)
+  #expect(try Data(contentsOf: fixture.file) == bytes)
+  try FileManager.default.removeItem(at: fixture.file)
+  await model.refresh()
+  try await waitForObservation { model.observation == .unreadable(.unavailable) }
+  #expect(model.contents == nil)
+  #expect(await monitor.contents(matching: .readable(ContentDigest(bytes))) == nil)
+  let replacement = Data("# replacement\n".utf8)
+  try replacement.write(to: fixture.file)
+  await model.refresh()
+  try await waitForObservation { model.contents?.digest == ContentDigest(replacement) }
+  #expect(await monitor.contents(matching: .readable(ContentDigest(bytes))) == nil)
+  task.cancel()
+  await task.value
+  #expect(model.contents == nil)
+}
+
+@Test func systemContentsRejectLossyEncodingAndPreserveCompleteTextPastParserLimit() {
+  for bytes in [Data([0xff]), Data([0xef, 0xbb, 0xbf, 65])] {
+    let contents = SystemFileContents(data: bytes)
+    #expect(contents.source == nil)
+    #expect(contents.digest == ContentDigest(bytes))
+    #expect(contents.diagnostics.contains { $0.code == .unsupportedEncoding })
+  }
+  let source = String(repeating: "# line\r\n", count: HostsLimits.systemLines + 1)
+  let contents = SystemFileContents(data: Data(source.utf8))
+  #expect(contents.source == source)
+  #expect(contents.diagnostics.contains { $0.code == .lineLimit })
+  #expect(SystemFileContents(data: Data()).source == "")
+}
+
+@Test @MainActor func previewRevisionSurvivesEqualBytesAfterFailureAndRestart() async throws {
+  let fixture = try ObservationFixture()
+  defer { fixture.cleanup() }
+  try fixture.before.write(to: fixture.file)
+  let model = SystemObservationModel(monitor: SystemFileMonitor(directory: fixture.directory))
+  let first = Task { await model.run() }
+  defer { first.cancel() }
+  try await waitForObservation { model.contents != nil }
+  let contents = model.contents
+  let initial = model.previewRevision
+  await model.refresh()
+  #expect(model.previewRevision == initial)
+  try FileManager.default.removeItem(at: fixture.file)
+  try await waitForObservation { model.contents == nil }
+  #expect(model.previewRevision > initial)
+  try fixture.before.write(to: fixture.file)
+  try await waitForObservation { model.contents == contents }
+  #expect(model.previewRevision > initial)
+  let recovered = model.previewRevision
+  first.cancel()
+  await first.value
+  let second = Task { await model.run() }
+  defer { second.cancel() }
+  try await waitForObservation { model.contents == contents }
+  #expect(model.previewRevision > recovered)
+  second.cancel()
+  await second.value
+}

@@ -19,7 +19,7 @@ struct ProbeApp: App {
 
 @MainActor
 private struct ProbeView: View {
-  @State private var status = "Bereit. Alle Dateitests verwenden eine private Wegwerfdatei."
+  @State private var status = "Ready. All file tests use a private disposable file."
   @State private var busy = false
   private let vmProbeEnabled = CommandLine.arguments.contains("--enable-vm-auth-probe")
 
@@ -27,26 +27,26 @@ private struct ProbeView: View {
     VStack(alignment: .leading, spacing: 20) {
       Label("MacHosts · Phase 0", systemImage: "network")
         .font(.title)
-      Text("Machbarkeitsprototyp – keine Hosts-Verwaltung")
+      Text("Feasibility prototype – not a hosts manager")
         .font(.headline)
       Text(
-        "Der Dateitest arbeitet ohne Administratorrechte. Ein eigener Swift-Prozess wird nicht als Root gestartet."
+        "The file test runs without administrator privileges. It does not launch our Swift code as root."
       )
-      Button("Dateitest: Anwenden und exakt wiederherstellen") {
+      Button("File test: apply and restore exact bytes") {
         busy = true
         Task {
           do {
             status = try await runFixtureDemo()
-          } catch { status = "Dateitest fehlgeschlagen: \(error)" }
+          } catch { status = "File test failed: \(error)" }
           busy = false
         }
       }
       .disabled(busy)
-      Button("Systemdialog prüfen (nur VM, keine Dateischreibvorgänge)") {
+      Button("Check system dialog (VM only, no file writes)") {
         busy = true
         Task {
           do { status = try await AuthorizationIdentityProbe.run() } catch {
-            status = "Systemdialog nicht bestätigt: \(error)"
+            status = "System dialog not confirmed: \(error)"
           }
           busy = false
         }
@@ -54,8 +54,8 @@ private struct ProbeView: View {
       .disabled(busy || !vmProbeEnabled)
       Text(
         vmProbeEnabled
-          ? "VM-Test freigeschaltet. Dies prüft ausschließlich Apples /usr/bin/id."
-          : "VM-Test deaktiviert. Freischaltung nur im dokumentierten VM-Testlauf."
+          ? "VM test enabled. This checks only Apple's /usr/bin/id."
+          : "VM test disabled. Enable only during the documented VM test run."
       )
       .font(.caption).foregroundStyle(.secondary)
       Divider()
@@ -77,7 +77,7 @@ private func runFixtureDemo() async throws -> String {
     guard try await session.snapshot() == before else { throw ProbeError.recoveryRequired }
     try await session.close()
     return
-      "Bestanden: Beispiel übernommen, zurückgelesen und bytegenau wiederhergestellt. Wegwerfdatei entfernt."
+      "Passed: example applied, read back, and restored byte for byte. Disposable file removed."
   } catch {
     try await session.close()
     throw error
@@ -109,6 +109,6 @@ private enum AuthorizationIdentityProbe {
     }
     guard result.stringValue == "0" else { throw Failure.unexpectedResult }
     return
-      "Systemautorisierung für Apples id bestätigt. Sicherer Start eines eigenen Swift-Tools weiterhin nicht nachgewiesen."
+      "System authorization for Apple's id confirmed. Safe launch of our Swift tool remains unproven."
   }
 }

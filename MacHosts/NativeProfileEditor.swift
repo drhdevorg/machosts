@@ -10,15 +10,23 @@ struct ProfileEditorJump: Equatable {
   let range: NSRange?
 }
 
+struct ProfileEditorFindRequest: Equatable {
+  let id = UUID()
+  let profileID: UUID
+  let replace: Bool
+}
+
 /// NSTextView keeps native selection, undo and find/replace. A view identity belongs to
 /// one profile so its undo stack can never modify a different profile after selection.
 struct NativeProfileEditor: NSViewRepresentable {
   let source: String
+  var isSystem = false
   let isEditable: Bool
   let jump: ProfileEditorJump?
+  var findRequest: ProfileEditorFindRequest? = nil
   let onChange: (String) -> String
 
-  func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
+  func makeCoordinator() -> Coordinator { Coordinator(isSystem: isSystem, onChange: onChange) }
 
   func makeNSView(context: Context) -> NSScrollView {
     let scroll = NSScrollView()
@@ -26,6 +34,7 @@ struct NativeProfileEditor: NSViewRepresentable {
     scroll.hasHorizontalScroller = true
     scroll.borderType = .bezelBorder
     let text = ProfileTextView(frame: .zero)
+    text.isEditable = isEditable
     text.isRichText = false
     text.allowsUndo = true
     text.usesFindBar = true
@@ -41,8 +50,9 @@ struct NativeProfileEditor: NSViewRepresentable {
       width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
     text.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
     text.textContainerInset = NSSize(width: 8, height: 8)
-    text.setAccessibilityIdentifier("profileSource")
-    text.setAccessibilityLabel(String(localized: "Profile source"))
+    text.setAccessibilityIdentifier(isSystem ? "systemSource" : "profileSource")
+    text.setAccessibilityLabel(
+      isSystem ? String(localized: "System file contents") : String(localized: "Profile source"))
     text.textColor = .textColor
     text.insertionPointColor = .textColor
     text.string = source
@@ -70,6 +80,13 @@ struct NativeProfileEditor: NSViewRepresentable {
       // Programmatic line switches/rejected edits invalidate older text offsets.
       text.undoManager?.removeAllActions()
     }
+    if let findRequest, context.coordinator.lastFind != findRequest.id {
+      context.coordinator.lastFind = findRequest.id
+      text.pendingFind =
+        findRequest.replace && isEditable ? .showReplaceInterface : .showFindInterface
+      text.showPendingFind()
+    }
+
     if let jump, context.coordinator.lastJump != jump.id {
       context.coordinator.lastJump = jump.id
       // A stale result must never select offsets in a more recent draft.
@@ -94,6 +111,7 @@ struct NativeProfileEditor: NSViewRepresentable {
   }
 
   final class Coordinator: NSObject, NSTextViewDelegate {
+    let isSystem: Bool
     private let styler = ProfileEditorStyler()
     private var requestedSource: String?
     var styling: Task<Void, Never>?
@@ -105,18 +123,25 @@ struct NativeProfileEditor: NSViewRepresentable {
       styling?.cancel()
       styling = Task { [weak text, styler] in
         do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
-        let presentation = await styler.presentation(for: source)
+        let presentation = await styler.presentation(for: source, system: isSystem)
         guard !Task.isCancelled, let text, text.string == source else { return }
         guard let layout = text.layoutManager else { return }
         let whole = NSRange(location: 0, length: (source as NSString).length)
         layout.removeTemporaryAttribute(.foregroundColor, forCharacterRange: whole)
         layout.removeTemporaryAttribute(.underlineStyle, forCharacterRange: whole)
+        layout.removeTemporaryAttribute(.backgroundColor, forCharacterRange: whole)
         for span in presentation.spans where span.range.length > 0 {
+          if span.style == .managed {
+            layout.addTemporaryAttribute(
+              .backgroundColor, value: NSColor.systemBlue.withAlphaComponent(0.12),
+              forCharacterRange: span.range)
+            continue
+          }
           let color: NSColor
           switch span.style {
           case .address: color = .systemBlue
           case .hostname: color = .textColor
-          case .comment, .disabled: color = .secondaryLabelColor
+          case .comment, .disabled, .managed: color = .secondaryLabelColor
           case .invalid: color = .systemRed
           }
           layout.addTemporaryAttribute(
@@ -132,8 +157,12 @@ struct NativeProfileEditor: NSViewRepresentable {
       }
     }
     var lastJump: UUID?
+    var lastFind: UUID?
     var onChange: (String) -> String
-    init(onChange: @escaping (String) -> String) { self.onChange = onChange }
+    init(isSystem: Bool, onChange: @escaping (String) -> String) {
+      self.isSystem = isSystem
+      self.onChange = onChange
+    }
     func textDidChange(_ notification: Notification) {
       guard let text = notification.object as? NSTextView else { return }
       let accepted = onChange(text.string)
@@ -150,10 +179,26 @@ struct NativeProfileEditor: NSViewRepresentable {
 
 /// A search can create a new profile editor before SwiftUI attaches it to a window.
 private final class ProfileTextView: NSTextView {
+  // A window's default undo manager can outlive a selected profile and includes
+  // other controls. External draft updates must clear only this editor's history.
+  private let editorUndoManager = UndoManager()
+  override var undoManager: UndoManager? { editorUndoManager }
+
   var focusOnAttach = false
+  var pendingFind: NSTextFinder.Action?
+
+  func showPendingFind() {
+    guard let window, let action = pendingFind else { return }
+    pendingFind = nil
+    window.makeFirstResponder(self)
+    let sender = NSMenuItem()
+    sender.tag = action.rawValue
+    performTextFinderAction(sender)
+  }
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
+    showPendingFind()
     if focusOnAttach, let window {
       focusOnAttach = false
       window.makeFirstResponder(self)

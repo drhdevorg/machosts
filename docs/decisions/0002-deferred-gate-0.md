@@ -1,21 +1,21 @@
-# ADR 0002 – Gate 0 zurückstellen und unabhängig weiterentwickeln
+# ADR 0002 – Defer gate 0 and continue independent development
 
-Datum: 25. Oktober 2026. **Status: angenommen auf ausdrücklichen Nutzerauftrag.**
+Date: October 25, 2026. **Status: accepted at the user's explicit request.**
 
-## Entscheidung
+## Decision
 
-Gate 0 wird zurückgestellt, nicht als bestanden behandelt. Der Nutzer möchte Projektaufbau und unabhängige Produktentwicklung fortsetzen und den privilegierten Schreibweg später lösen. Die bisherige pauschale Sperre aller Folgephasen entfällt.
+Gate 0 is deferred, not passed. The user wants project setup and independent product development to continue and the privileged write path to be resolved later. The previous blanket block on all subsequent phases is removed.
 
-Phasen 1–3 dürfen vollständig umgesetzt werden. Phasen 4–7 dürfen mit unprivilegierten, privaten Fixtures und einem ausdrücklich nicht verfügbaren Systemwriter vorbereitet und entwickelt werden; ihre fachlichen Abhängigkeiten bleiben bestehen. UI, Menüleiste, Import und Remote dürfen dabei keinen Systemwrite als erfolgreich darstellen. Eine Simulation darf ausschließlich als solche erkennbar in Tests oder einem ausdrücklich gewählten Demomodus laufen, niemals als stiller Ersatz für die echte Übernahme.
+Phases 1–3 may be fully implemented. Phases 4–7 may be prepared and developed using unprivileged private fixtures and an explicitly unavailable system writer; their functional dependencies remain. UI, menu bar, import, and remote features must not report a successful system write. Simulation may run only when visibly identified in tests or an explicitly selected demo mode, never as a silent substitute for actual application.
 
-Gate 0 bleibt Voraussetzung für Freischaltung des produktiven privilegierten Writers und den echten Integrationsabschluss von Phase 4. Gates 8 und 9 einschließlich Produktions- und Releasefreigabe setzen weiterhin sämtliche echten Integrationsnachweise voraus. Teilabschlüsse werden getrennt von bestandenen Gesamtgates dokumentiert.
+Gate 0 remains required before enabling the production privileged writer and completing real phase-4 integration. Gates 8 and 9, including production/release approval, still require all actual integration evidence. Partial results are documented separately from passed overall gates.
 
-## Konsequenzen
+## Consequences
 
-Der Autorisierungsadapter bleibt bis zum Nachweis nicht verfügbar. Das eingebettete Tool führt keine Systemoperationen aus und lehnt Root-Start ab. Parser, Workspace und UI bleiben unabhängig von der späteren Autorisierung. Ein Architekturwechsel wegen eines negativen Phase-0-Nachweises wird weiterhin über ADR dokumentiert.
+The authorization adapter remains unavailable until proven. The embedded tool performs no system operations and rejects root startup. Parser, workspace, and UI remain independent of the eventual authorization implementation. Any architectural change resulting from negative phase-0 evidence still requires an ADR.
 
-Die lokale Hosts-Datei des Arbeitsrechners bleibt als Schreibziel einschließlich Metadaten ausgeschlossen. Echte privilegierte Tests bleiben auf eine bestätigte Wegwerf-VM begrenzt. Kein persistenter Root-Helper, keine aufgeweichten Dateirechte und kein vorgetäuschter Erfolgsstatus.
+The workstation's local hosts file, including its metadata, remains excluded as a write target. Real privileged tests remain restricted to a confirmed disposable VM. No persistent root helper, relaxed file permissions, or fabricated success state.
 
-## Ablösung
+## Supersession
 
-Diese Entscheidung ersetzt die zeitliche Gate-0-Sperre in den bisherigen Planungsdokumenten. Die Sicherheits- und Datenintegritätsverträge aus ADR 0001 und Architektur bleiben bestehen. Die VM-Tests bleiben vertagt, bis der Nutzer ihre Durchführung beauftragt und eine geeignete VM bestätigt ist.
+This decision replaces the chronological gate-0 block in earlier planning documents. The security/data-integrity contracts in ADR 0001 and the architecture remain binding. VM tests remain postponed until the user requests their execution and a suitable VM is confirmed.

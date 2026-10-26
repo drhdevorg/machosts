@@ -11,7 +11,7 @@ public final class ProfileWorkspaceModel {
   public private(set) var saveFailed = false
   public private(set) var editFailure: WorkspaceFailure?
   private let store: WorkspaceStore
-  private let autosave: WorkspaceAutosave?
+  private var autosave: WorkspaceAutosave?
   private let delay: Duration
   private var savedDraft: Workspace
   @ObservationIgnored private var debounce: Task<Void, Never>?
@@ -40,7 +40,42 @@ public final class ProfileWorkspaceModel {
     return ProfileWorkspaceModel(store: store, load: load, autosave: autosave, delay: delay)
   }
 
-  public var isReadOnly: Bool { autosave == nil || persisted.readOnlyReason != nil }
+  public private(set) var isRecovering = false
+  public private(set) var recoveryFailed = false
+
+  public var canRecoverPrevious: Bool {
+    persisted.readOnlyReason == .corruptSnapshot && persisted.recoveryCandidate != nil
+      && !isRecovering
+  }
+
+  /// Restores only the reviewed local recovery candidate. The store checks current bytes
+  /// and preserves the damaged original; applied receipts and pending intents stay intact.
+  public func recoverPrevious() async -> Bool {
+    guard canRecoverPrevious, !hasUnsavedChanges else { return false }
+    isRecovering = true
+    recoveryFailed = false
+    defer { isRecovering = false }
+    do {
+      let digest = await store.currentFileDigest()
+      _ = try await store.recoverPrevious(expectedCurrentDigest: digest)
+      persisted = await store.state()
+      guard let snapshot = persisted.snapshot else { throw WorkspaceStoreFailure.notLoaded }
+      workspace = snapshot.draft
+      savedDraft = snapshot.draft
+      autosave = try await WorkspaceAutosave.open(store: store, delay: delay)
+      saveFailed = false
+      editFailure = nil
+      return true
+    } catch {
+      persisted = await store.state()
+      recoveryFailed = true
+      return false
+    }
+  }
+
+  public var isReadOnly: Bool {
+    isRecovering || autosave == nil || persisted.readOnlyReason != nil
+  }
   public var hasUnsavedChanges: Bool { workspace != savedDraft }
   public var hasUnappliedChanges: Bool {
     guard let applied = persisted.snapshot?.applied else { return !workspace.profiles.isEmpty }
@@ -50,6 +85,14 @@ public final class ProfileWorkspaceModel {
   @discardableResult
   public func create(name: String) -> UUID? {
     let profile = Profile(name: name)
+    return change { $0.profiles.append(profile) } ? profile.id : nil
+  }
+
+  /// Inserts exactly the reviewed source as a new inactive local profile in one revision.
+  /// Complete workspace validation rejects the entire import on any budget/name failure.
+  @discardableResult
+  public func importText(_ snapshot: HostsTextImport, name: String) -> UUID? {
+    let profile = Profile(name: name, source: snapshot.source)
     return change { $0.profiles.append(profile) } ? profile.id : nil
   }
 
@@ -92,12 +135,35 @@ public final class ProfileWorkspaceModel {
     return succeeded ? newID : nil
   }
 
+  public func setLinesEnabled(
+    _ id: UUID, numbers: Set<Int>, enabled: Bool, expectedDigest: ContentDigest
+  ) {
+    change { draft in
+      guard let index = draft.profiles.firstIndex(where: { $0.id == id }) else {
+        throw WorkspaceFailure.missingProfile
+      }
+      try draft.profiles[index].setLinesEnabled(
+        numbers, enabled: enabled, expectedDigest: expectedDigest)
+    }
+  }
+
   public func delete(_ id: UUID) {
     change { try $0.deleteProfile(id) }
   }
 
   public func restore(_ id: UUID) {
     change { try $0.restoreProfile(id) }
+  }
+
+  /// Availability follows persisted sibling order, even when search hides other profiles.
+  public func canMove(_ id: UUID, by offset: Int) -> Bool {
+    guard !isReadOnly,
+      let profile = workspace.profiles.first(where: { $0.id == id })
+    else { return false }
+    let siblings = workspace.profiles.filter { $0.folderID == profile.folderID }
+    guard let position = siblings.firstIndex(where: { $0.id == id }) else { return false }
+    let (destination, overflow) = position.addingReportingOverflow(offset)
+    return offset != 0 && !overflow && siblings.indices.contains(destination)
   }
 
   public func move(_ id: UUID, by offset: Int) {

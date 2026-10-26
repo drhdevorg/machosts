@@ -15,7 +15,7 @@ struct MacHostsApp: App {
   }
 
   var body: some Scene {
-    WindowGroup("MacHosts") {
+    WindowGroup("MacHosts", id: "workspace") {
       ProfileWorkspaceView(model: model)
         .task {
           delegate.flush = { await model.editor?.flush() ?? true }
@@ -28,13 +28,92 @@ struct MacHostsApp: App {
     }
     .defaultSize(width: 1050, height: 740)
     .commands {
-      CommandGroup(replacing: .newItem) {
-        Button("New profile") { model.newProfile() }
-          .keyboardShortcut("n")
-          .disabled(model.editor?.isReadOnly != false)
-        Button("Save drafts") { Task { _ = await model.editor?.flush() } }
-          .keyboardShortcut("s")
-      }
+      WorkspaceCommands()
+    }
+  }
+}
+
+/// Commands follow the active window and are unavailable while its sheets are open.
+struct WorkspaceCommandActions {
+  let canEdit: Bool
+  let hasProfile: Bool
+  let canReplace: Bool
+  let canManageProfile: Bool
+  let canMoveUp: Bool
+  let canMoveDown: Bool
+  let duplicate: () -> Void
+  let delete: () -> Void
+  let move: (Int) -> Void
+  let newProfile: () -> Void
+  let save: () -> Void
+  let search: () -> Void
+  let find: (Bool) -> Void
+  let preview: () -> Void
+  let folders: () -> Void
+  let trash: () -> Void
+  let systemStatus: () -> Void
+  let exchange: () -> Void
+}
+
+private struct WorkspaceCommandKey: FocusedValueKey {
+  typealias Value = WorkspaceCommandActions
+}
+
+extension FocusedValues {
+  var workspaceCommands: WorkspaceCommandActions? {
+    get { self[WorkspaceCommandKey.self] }
+    set { self[WorkspaceCommandKey.self] = newValue }
+  }
+}
+
+private struct WorkspaceCommands: Commands {
+  @FocusedValue(\.workspaceCommands) private var actions
+  @Environment(\.openWindow) private var openWindow
+
+  var body: some Commands {
+    CommandGroup(replacing: .newItem) {
+      Button("New window") { openWindow(id: "workspace") }
+        .keyboardShortcut("n", modifiers: [.command, .shift])
+      Button("New profile") { actions?.newProfile() }
+        .keyboardShortcut("n")
+        .disabled(actions?.canEdit != true)
+      Button("Import / Export…") { actions?.exchange() }
+        .disabled(actions == nil)
+      Button("Save drafts") { actions?.save() }
+        .keyboardShortcut("s")
+        .disabled(actions?.canEdit != true)
+    }
+    CommandMenu("Find") {
+      Button("Find in profile…") { actions?.find(false) }
+        .keyboardShortcut("f")
+        .disabled(actions?.hasProfile != true)
+      Button("Replace in profile…") { actions?.find(true) }
+        .keyboardShortcut("f", modifiers: [.command, .option])
+        .disabled(actions?.canReplace != true)
+      Button("Search all profiles") { actions?.search() }
+        .keyboardShortcut("f", modifiers: [.command, .shift])
+        .disabled(actions == nil)
+    }
+    CommandMenu("Profiles") {
+      Button("Duplicate as local profile") { actions?.duplicate() }
+        .disabled(actions?.canManageProfile != true)
+      Button("Move up") { actions?.move(-1) }
+        .disabled(actions?.canMoveUp != true)
+      Button("Move down") { actions?.move(1) }
+        .disabled(actions?.canMoveDown != true)
+      Button("Move to trash") { actions?.delete() }
+        .disabled(actions?.canManageProfile != true)
+      Divider()
+      Button("Preview changes") { actions?.preview() }
+        .keyboardShortcut("p", modifiers: [.command, .shift])
+        .disabled(actions?.canEdit != true)
+      Button("Folders") { actions?.folders() }
+        .disabled(actions?.canEdit != true)
+      Button("Trash") { actions?.trash() }
+        .disabled(actions == nil)
+      Divider()
+      Button("System file status") { actions?.systemStatus() }
+        .disabled(actions == nil)
     }
   }
 }
@@ -70,7 +149,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 @MainActor @Observable
 final class AppModel {
   var editor: ProfileWorkspaceModel?
-  var selection: UUID?
   let system = SystemObservationModel()
   #if DEBUG
     let isPrivateTest = ProcessInfo.processInfo.arguments.contains("--ui-testing-local-workspace")
@@ -110,10 +188,6 @@ final class AppModel {
     } catch {
       system.updateWorkspace(nil)
     }
-  }
-
-  func newProfile() {
-    selection = editor?.create(name: String(localized: "New profile"))
   }
 
   func refresh() {
@@ -157,6 +231,37 @@ struct SystemObservationView: View {
           Text(
             "This build cannot check the system transaction records. The pending apply is preserved and further applies remain blocked."
           )
+        }
+      }
+      if let contents = model.contents {
+        Text("System file contents").font(.headline)
+        Text("Read-only. The blue background marks the MacHosts managed block.")
+          .font(.caption)
+        if let source = contents.source {
+          NativeProfileEditor(source: source, isSystem: true, isEditable: false, jump: nil) { _ in
+            source
+          }
+          .frame(minHeight: 260)
+        } else {
+          Text("The file encoding is unsupported. Contents cannot be displayed without conversion.")
+        }
+        if !contents.diagnostics.isEmpty {
+          Text("The system file has parser diagnostics. Applying changes may be blocked.")
+            .foregroundStyle(.orange)
+          ScrollView {
+            VStack(alignment: .leading) {
+              ForEach(Array(contents.diagnostics.prefix(20).enumerated()), id: \.offset) {
+                _, diagnostic in
+                HStack(alignment: .firstTextBaseline) {
+                  if let line = diagnostic.line { Text("Line \(line):") }
+                  Text(diagnosticText(diagnostic.code, system: true))
+                }
+              }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .frame(maxHeight: 80)
+          if contents.diagnostics.count > 20 { Text("Only the first 20 diagnostics are shown.") }
         }
       }
       HStack {
@@ -211,7 +316,23 @@ struct SystemObservationView: View {
     static func open() async throws -> WorkspaceStore {
       let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
         "machosts-ui-" + UUID().uuidString, isDirectory: true)
+      if ProcessInfo.processInfo.arguments.contains("--ui-testing-damaged-workspace") {
+        try await seedRecoveryCandidate(directory: directory)
+        try Data("{truncated UI fixture".utf8).write(
+          to: directory.appendingPathComponent("workspace.json"))
+      }
       return try await WorkspaceStore.open(directory: directory)
+    }
+
+    private static func seedRecoveryCandidate(directory: URL) async throws {
+      let store = try await WorkspaceStore.open(directory: directory)
+      _ = try await store.saveDraft(
+        Workspace(
+          revision: 1,
+          profiles: [
+            Profile(name: "Recovered fixture", source: "192.0.2.23 recovery.example\n")
+          ]), expectedGeneration: 0)
+      _ = try await store.saveDraft(Workspace(revision: 2), expectedGeneration: 1)
     }
   }
 #endif

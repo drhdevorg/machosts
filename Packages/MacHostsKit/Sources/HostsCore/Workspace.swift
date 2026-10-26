@@ -68,6 +68,52 @@ public struct Profile: Identifiable, Codable, Equatable, Sendable {
     source = String(decoding: result, as: UTF8.self)
     revision += 1
   }
+
+  /// Changes complete parsed records atomically, preserving all other source bytes.
+  /// Ordinary comments and invalid lines can never be enabled by this operation.
+  public mutating func setLinesEnabled(
+    _ numbers: Set<Int>, enabled: Bool, expectedDigest: ContentDigest
+  ) throws {
+    guard kind == .local else { throw WorkspaceFailure.readOnlyProfile }
+    let data = Data(source.utf8)
+    guard ContentDigest(data) == expectedDigest else { throw WorkspaceFailure.staleRevision }
+    let document = HostsDocument.parse(data, context: .profile)
+    guard !document.diagnostics.contains(where: { $0.code == .lineLimit || $0.code == .sizeLimit })
+    else { throw WorkspaceFailure.limitExceeded }
+    let entries = document.lines.filter {
+      if case .entry = $0.kind { return numbers.contains($0.number) }
+      return false
+    }
+    guard entries.count == numbers.count else { throw WorkspaceFailure.notAnEntry }
+    var changes: [Int: String] = [:]
+    var count = data.count
+    for line in entries {
+      guard case .entry(let entry) = line.kind, entry.isEnabled != enabled else { continue }
+      let content =
+        enabled
+        ? String(line.content.dropFirst(HostsSyntax.disabled.count))
+        : HostsSyntax.disabled + line.content
+      changes[line.number] = content + line.ending
+      count += content.utf8.count - line.content.utf8.count
+    }
+    guard !changes.isEmpty else { return }
+    guard count <= HostsLimits.profileBytes else { throw WorkspaceFailure.limitExceeded }
+    guard revision < UInt64.max else { throw WorkspaceFailure.revisionOverflow }
+    var result = Data()
+    result.reserveCapacity(count)
+    for line in document.lines {
+      if let replacement = changes[line.number] {
+        result.append(contentsOf: replacement.utf8)
+      } else {
+        result.append(data[line.bytes])
+      }
+    }
+    // Preserve bytes beyond a partial/unsupported parse; such lines cannot be selected.
+    let end = document.lines.last?.bytes.upperBound ?? 0
+    result.append(data.dropFirst(end))
+    source = String(decoding: result, as: UTF8.self)
+    revision += 1
+  }
 }
 
 public struct ProfileFolder: Identifiable, Codable, Equatable, Sendable {

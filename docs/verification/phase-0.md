@@ -1,50 +1,50 @@
-# Phase 0 – lokale Vorbereitung
+# Phase 0 – Local preparation
 
-Datum: 25. Oktober 2026. **Status: lokale Vorbereitung abgeschlossen; Gate 0 nicht bestanden / Nachweise ausstehend.** Der Nutzer hat ausdrücklich entschieden, VM-Tests vorerst offenzulassen. Gate 0 ist inzwischen gemäß [ADR 0002](../decisions/0002-deferred-gate-0.md) zurückgestellt; unabhängige Produktentwicklung ab Phase 1 ist erlaubt. Die folgenden Nachweise und älteren Fortsetzungsberichte beschreiben ihren jeweiligen damaligen Stand.
+Date: October 25, 2026. **Status: local preparation complete; gate 0 not passed / evidence outstanding.** The user explicitly postponed VM tests. [ADR 0002](../decisions/0002-deferred-gate-0.md) now defers gate 0 and permits independent development from phase 1 onward. Reports below describe their historical state; statements that phase 1 had not started or Git was absent apply to those runs, not the current repository.
 
-## Implementierte Artefakte
+## Implemented artifacts
 
-Unter [Experiments/AuthorizationProbe](../../Experiments/AuthorizationProbe/README.md) liegen ein eigenständiges Swift-Package, eine native SwiftUI-Demo, ein kurzlebiges unprivilegiertes Demo-Tool, ein lokaler Packager und Swift-Testing-Tests. Keine externen Package-Abhängigkeiten, kein Developer-Team, keine Kennwortverwaltung und kein frei wählbarer Systemschreibpfad.
+[Experiments/AuthorizationProbe](../../Experiments/AuthorizationProbe/README.md) contains a standalone Swift package, native SwiftUI demo, short-lived unprivileged demo tool, local packager, Swift Testing tests. No external packages, developer team, password management, or arbitrary system write path.
 
-Der Teststore erzeugt seine eigene private Wegwerfdatei. Er prüft Requestform, erwarteten Digest, mehrdeutige Blockmarker und bestehende Symlink-/Hardlinkziele; er erzeugt Backup, Journal und Receipt. Simulierte Fehler vor/nach Commit werden rekonstruiert. Ein fremder neuer Stand verhindert automatisches Überschreiben. Das ist ein begrenztes Modell des späteren Ablaufs, kein für Root geeigneter Dateisystemcode.
+The store creates its own private disposable file. It validates request shape/expected digest/ambiguous markers/existing symlink and hardlink targets, creates backup/journal/receipt, and reconstructs injected failures before/after commit. New foreign state blocks automatic overwrite. This is a limited workflow model, not root-suitable filesystem code.
 
-Die App kann denselben lokalen Apply-/Readback-/Restore-Ablauf ausführen. Ein separat freischaltbarer VM-Button enthält ausschließlich den festen OS-Autorisierungsaufruf für Apples `/usr/bin/id -u`. Er wurde hier **nicht betätigt**. Die eigene GUI und das Demo-Tool lehnen Root-Ausführung im Code ab; diese Root-Ablehnung wurde nicht durch einen tatsächlichen Root-Start getestet.
+The app can exercise local apply/readback/restore. A separately enabled VM button contains only fixed OS authorization for Apple's `/usr/bin/id -u`; it was **not pressed**. GUI/demo tool reject root by code; actual root launch was not tested.
 
-## Umgebung
+## Environment
 
-- Apple Silicon / arm64, Host macOS 27.0.1, Xcode 27.1 (27A9275), Swift 6.4, SDK 27.0.
-- Package-Deployment Target 27.0, Swift-6-Sprachmodus.
-- UTM unter `/Applications/UTM.app` vorhanden. `utmctl list` beendete sich ohne Ausgabe mit Exit 134. Keine `.utm`-VM in den beiden geprüften üblichen Verzeichnissen gefunden; dies ist keine vollständige Inventarisierung aller Nutzerlaufwerke.
-- Ausführung unter bestehender Dateisystem-/Prozess-Sandbox. Module-/Package-Caches auf beschreibbare `/tmp/machosts-phase0-*`-Pfade gelegt, ohne `$HOME` oder `$CODEX_HOME` umzusetzen.
+- Apple Silicon/arm64, host macOS 27.0.1, Xcode 27.1 (27A9275), Swift 6.4, SDK 27.0.
+- Package deployment target 27.0, Swift 6 language mode.
+- UTM at `/Applications/UTM.app`; `utmctl list` exited 134 without output. No `.utm` VM in two checked usual directories; not a complete inventory of user drives.
+- Existing filesystem/process sandbox. Module/package caches under writable `/tmp/machosts-phase0-*`, without overriding `$HOME`/`$CODEX_HOME`.
 
-## Tatsächlich bestandene Prüfungen
+## Initial checks actually passed
 
-| Prüfung | Ergebnis |
+| Check | Result |
 | --- | --- |
-| Debug-Build aller Targets und Swift-Testing-Suite | bestanden; 12 Testfunktionen, darunter parametrisierte Fälle |
-| Unbekannte Requestfelder / Operationen, Digestformat, Übergröße | abgewiesen wie erwartet |
-| Fremdbytes mit CRLF, UTF-8-Kommentaren, fehlendem letzten LF | Verhalten mit Fixtures belegt |
-| Defekte/doppelte/umgekehrte Marker | Write-Komposition abgewiesen |
-| Normaler Apply, Readback und Vollbackup-Restore an privater Fixture | Originalbytes exakt wiederhergestellt |
-| Veralteter Request nach Apply | abgewiesen; aktueller Inhalt erhalten |
-| No-op bei nicht vorhandenem eigenen Block | ohne Backup-/Journalpfad erfolgreich |
-| Fehlerinjektion vor Backup, nach Backup, nach Journal, nach Ersetzen, nach Receipt | erwarteter Zustand rekonstruiert |
-| Externe Änderung nach simuliertem Commit-Abbruch | bleibt unverändert; weiterer Apply gesperrt |
-| Symlink und Hardlink am Testziel | Lesen abgewiesen; referenzierte Datei unverändert |
-| Release-Build mit lokalem nativen SwiftPM-Builder | bestanden |
-| Demo-CLI direkt und aus signiertem Bundle mit `--demo` | bestanden, Exit 0 |
-| CLI mit `--target /private/etc/hosts` | abgewiesen, erwarteter Exit 64; Ziel wurde nicht geöffnet |
-| `swift-format lint --strict` | bestanden |
-| App-/ZIP-Paketierung ohne Account-/Teamkonfiguration | bestanden |
-| `codesign --verify --deep --strict --verbose=2` | Bundle und eingebettete Binary validiert |
-| `codesign --display --verbose=4` | arm64, `Signature=adhoc`, Flags `adhoc,runtime`, `TeamIdentifier=not set` |
-| `otool -L` auf eingebettetem Demo-Tool | nur `/usr/lib`- und `/System/Library`-Abhängigkeiten im geprüften Artefakt |
+| Debug build, all targets/Swift Testing | Passed; 12 functions including parameterized cases |
+| Unknown request fields/operations, digest format, oversize | Rejected as expected |
+| Foreign CRLF/UTF-8 comments/missing final LF | Fixture behavior verified |
+| Broken/duplicate/reversed markers | Composition rejected |
+| Apply/readback/full-backup restore on private fixture | Exact original restored |
+| Stale request after apply | Rejected; current content retained |
+| No-op without owned block | Succeeded without backup/journal |
+| Failure before/after backup, after journal/replacement/receipt | Expected state reconstructed |
+| External changes after injected commit interruption | Preserved; further apply blocked |
+| Symlink/hardlink test target | Read rejected; referenced file unchanged |
+| Release using local native SwiftPM builder | Passed |
+| CLI directly/from signed bundle with `--demo` | Passed, exit 0 |
+| CLI `--target /private/etc/hosts` | Rejected, expected exit 64; target not opened |
+| `swift-format lint --strict` | Passed |
+| App/ZIP packaging without account/team | Passed |
+| `codesign --verify --deep --strict --verbose=2` | Bundle/embedded binary verified |
+| `codesign --display --verbose=4` | arm64, `Signature=adhoc`, flags `adhoc,runtime`, `TeamIdentifier=not set` |
+| Embedded demo tool `otool -L` | Only `/usr/lib` and `/System/Library` dependencies in checked artifact |
 
-Die zwölf Testfunktionen prüfen das Modell, nicht den späteren privilegierten Writer. Stale-Digest-Abweisung ist kein vollständiger Replay-Schutz nach Rückkehr auf einen identischen Dateistand. Fehlerinjektion ist kein realer Prozessabsturz oder Stromausfalltest.
+The 12 functions test the model, not a future privileged writer. Stale-digest rejection is not full replay protection after returning to identical bytes. Injected failures are not actual process crashes/power loss.
 
-### Wichtige Befehle
+### Commands
 
-Alle Befehle aus dem Repository-Root. Anleitung zum Wiederholen: [Experiment-README](../../Experiments/AuthorizationProbe/README.md).
+From repository root. [Reproduction instructions](../../Experiments/AuthorizationProbe/README.md).
 
 ```sh
 CLANG_MODULE_CACHE_PATH=/tmp/machosts-phase0-modules SWIFTPM_MODULECACHE_OVERRIDE=/tmp/machosts-phase0-modules swift test --package-path Experiments/AuthorizationProbe --scratch-path /tmp/machosts-phase0-build --cache-path /tmp/machosts-phase0-cache --disable-sandbox
@@ -55,119 +55,103 @@ codesign --verify --deep --strict --verbose=2 Experiments/AuthorizationProbe/Out
 xcrun swift-format lint --strict --recursive Experiments/AuthorizationProbe/Sources Experiments/AuthorizationProbe/Tests Experiments/AuthorizationProbe/Package.swift
 ```
 
-Letzter Testlauf: `Test run with 12 tests in 0 suites passed`; Toolausgabe: `PASS: isolated fixture apply, readback and exact restore; no system file accessed.`
+Initial output: `Test run with 12 tests in 0 suites passed`; tool: `PASS: isolated fixture apply, readback and exact restore; no system file accessed.`
 
-## Lokales Download-Artefakt
+## Local download artifact
 
 - App: `Experiments/AuthorizationProbe/Output/MacHostsAuthorizationProbe.app`
 - ZIP: `Experiments/AuthorizationProbe/Output/MacHostsAuthorizationProbe.zip`
-- SHA-256 des erzeugten ZIP: `8bf05473bd9229da1bf952021d32198e2e24ac02537b0bbc0f68a8a5b2fb0c9e`
-- Gemessene belegte Größe per `du`: App 500 KiB, ZIP 132 KiB; dies ist ein Minimalexperiment und keine Prognose für die Produkt-App.
+- Generated ZIP SHA-256: `8bf05473bd9229da1bf952021d32198e2e24ac02537b0bbc0f68a8a5b2fb0c9e`
+- Allocated size measured with `du`: app 500 KiB, ZIP 132 KiB. Minimal experiment, not product size forecast.
 
-`Output` und Buildverzeichnisse sind generiert und in `.gitignore` ausgeschlossen. Kein Upload, keine Veröffentlichung. Bei Neuverpackung ändert sich der ZIP-Digest; der Packager überschreibt bestehende App-Artefakte absichtlich nicht.
+`Output`/build directories are generated and ignored. No upload/publication. Repackaging changes the digest; packager deliberately refuses to overwrite an existing app. Later follow-ups below did **not** rebuild these artifacts, so that digest belongs to the earlier build.
 
-## Aufgedeckte Probleme und Grenzen
+## Problems found and limits
 
-1. Ein Test mit CRLF schlug zuerst fehl: Swift-String-Splitting auf `\n` erfasste CRLF nicht wie beabsichtigt. Marker-Erkennung arbeitet nun auf Bytes. Danach bestanden sämtliche Tests.
-2. Der erste Manifest-Build wollte einen nicht beschreibbaren globalen Clang-Cache verwenden; lokale Cachepfade beheben das.
-3. Release mit dem neuen Standard-SwiftPM-Builder scheiterte beim dSYM-Schritt mit `Operation not permitted`. Der native Builder bestand. Er ist deprecated und nur lokale Prototyp-Ausweichlösung, kein dauerhafter Produktstandard. User-Cache-Warnungen und einzelne `sandbox-exec`-Diagnosen im erfolgreichen nativen Build sind protokollierte Umgebungsgrenzen.
-4. Der erste Packageraufruf scheiterte an der zusätzlichen SwiftPM-Sandbox der internen Binärpfadabfrage. Die Abfrage verwendet nun ebenso `--disable-sandbox`; anschließend wurde das Bundle erfolgreich erzeugt und geprüft. Dies schaltet weder SIP noch Gatekeeper ab.
-5. Computer Use wurde für die neue App nicht freigegeben. Daher kein bestätigter GUI-Start, kein Klicktest und keine visuelle QA; es wird nicht auf andere UI-Steuerungswege ausgewichen.
-6. Der Fixture-Store verwendet Foundation-Atomics und Vorab-`lstat`; seine TOCTOU-, fsync-, Metadaten- und Restore-/Mehrprozessgrenzen sind im Experiment-README ausdrücklich beschrieben. JSON-Duplikatschlüssel werden inzwischen am Wire-Eingang abgewiesen, siehe Ergänzung unten. Keine Freigabe für Root oder Produktcode.
+1. Initial CRLF test failed because Swift splitting on `\n` missed intended CRLF behavior. Marker recognition now uses bytes; all tests then passed.
+2. First manifest build wanted an unwritable global Clang cache; local cache paths fixed it.
+3. New default SwiftPM builder failed at dSYM with `Operation not permitted`; native builder passed. It is deprecated and only a prototype workaround. User-cache warnings/some `sandbox-exec` messages in the successful build are recorded environment limitations.
+4. Initial packager failed inside its binary-path query's extra SwiftPM sandbox. That query now also uses `--disable-sandbox`; packaging/verification then passed. This disables neither SIP nor Gatekeeper.
+5. Computer Use was not approved for the new app. No confirmed GUI start/click test/visual QA; no alternate UI-control workaround was used.
+6. Initial store used Foundation atomic replacement and preflight `lstat`; TOCTOU/fsync/metadata/restore/multiprocess limits are explicit in its README. Later follow-ups close specified read/schema issues only; none approves root/product reuse.
 
-## Fortsetzung: eindeutiger Request-Eingang
+## Follow-up – Unambiguous request input
 
-Am 25. Oktober 2026 wurde ausschließlich der lokale Phase-0-Prototyp weiterbearbeitet. `ProbeRequest.decode` prüft das maximal 16 KiB große, flache JSON-Objekt vor dem typisierten Decoding. Doppelte Schlüssel werden anhand ihrer decodierten Zeichenketten abgewiesen, einschließlich Unicode-Escapes und unabhängig von der Reihenfolge. Verschachtelte Werte, ungültige String-Escapes, zusätzliche Daten nach dem Objekt und abgeschnittene Requests werden abgewiesen. Feldreihenfolge und JSON-Leerzeichen bleiben frei. Das numerische Versionsfeld erlaubt nur ganzzahlige JSON-Schreibweise.
+October 25, 2026, local phase-0 work only. `ProbeRequest.decode` prevalidates a flat JSON object of at most 16 KiB before typed decoding. It rejects duplicate decoded keys, including Unicode escapes and any ordering, nested values, bad string escapes, trailing data, truncated requests. Field ordering/JSON whitespace remain free. Numeric version allows integer JSON notation only.
 
-Neue Verhaltenstests prüfen identische und widersprüchliche Duplikate aller vier Felder vor und nach dem ursprünglichen Feld, einen escaped Duplikatschlüssel, gültige umsortierte/escaped Schlüssel, fehlerhafte JSON-Hüllen sowie jede Abschneidestelle eines gültigen Requests. Die Prüfung ist nur für `ProbeRequest.decode` belegt; direktes Codable-Decoding kann doppelte Schlüssel nicht erkennen. Sichere Übergabe, Replay-Schutz und privilegierte Requestintegrität bleiben offen.
+Behavior tests cover identical/conflicting duplicates of all four fields before/after originals, escaped duplicate key, valid reordered/escaped keys, invalid envelopes, every truncation boundary. Protection applies to `ProbeRequest.decode`; direct Codable cannot detect duplicate keys. Safe transport/replay/privileged integrity remain open.
 
-Erneut ausgeführt mit den oben dokumentierten Befehlen: Debug-Build aller Targets und Swift-Testing-Suite bestanden (`Test run with 16 tests in 0 suites passed`); `swift-format lint --strict --recursive` bestanden, Exit 0. SwiftPM meldete weiterhin die nicht beschreibbaren nutzerweiten Cacheverzeichnisse; die lokalen `/tmp`-Caches wurden verwendet. Release-/Signatur-/GUI- und VM-Prüfungen wurden bei dieser Ergänzung nicht wiederholt.
+Debug all-target build/tests passed: **16 functions**; recursive strict formatting passed, exit 0. Same commands/local caches as above; unwritable user-cache warnings persisted. No Release/signature/GUI/VM rerun, system write, authorization, or phase-1 start. There was no Git repository; changed sources were reviewed directly.
 
-Die vorhandenen App-/ZIP-Artefakte unter `Output` wurden bei dieser Fortsetzung nicht neu gebaut; ihr oben dokumentierter Digest gehört zum früheren Build und enthält diese Ergänzung nicht. Kein Systemwrite, kein Autorisierungsaufruf und kein Beginn von Phase 1. Der Arbeitsordner enthält kein Git-Repository; deshalb war keine Git-Diffprüfung möglich. Die geänderten Quelldateien wurden direkt geprüft.
+## Not executed / not proven
 
-## Noch nicht ausgeführt / nicht nachgewiesen
+- Protected root launch/transport of our own Swift binary, including libraries/updates.
+- Actual macOS-27 system authorization with cancellation/caching/timeout.
+- Process kill/restart and power-loss/durability behavior.
+- Real hosts transaction, metadata, DNS-cache operation, exact VM system restore.
+- Quarantined first launch, install/update, multiuser behavior in a fresh VM.
+- SwiftUI visual/UI acceptance.
 
-- Sichere Übergabe und geschützter Start einer eigenen Swift-Binary als Root, inklusive Library- und Updatepfad.
-- Tatsächliche Systemautorisierung inklusive Abbruch/Caching/Timeout auf macOS 27.
-- Prozess-Kill/Neustart und Stromausfall-/Durability-Verhalten.
-- Echte Hosts-Transaktion, Metadaten, DNS-Cache-Operation und bytegenaue VM-Systemwiederherstellung.
-- Erststart eines quarantänisierten Download-Artefakts, Installation/Update und mehrere Benutzer in einer frischen VM.
-- Visuelle/UI-Abnahme der SwiftUI-Oberfläche.
+The prototype never opened/wrote workstation hosts. No root services installed, authorization requested, or system protections disabled.
 
-Die Hosts-Datei des Arbeitsrechners wurde durch diesen Prototyp weder geöffnet noch geschrieben. Es wurden keine Root-Dienste installiert, keine Systemautorisierung angefordert und keine Schutzfunktionen abgeschaltet.
+## Follow-up – Bounded reads and apply size limit
 
-## Fortsetzung: begrenztes Lesen und Apply-Größenlimit
+October 25, 2026. Replaced `Data(contentsOf:)` followed by a limit check with reads of at most 64 KiB per chunk and 1 MiB plus one probe byte total for fixture/backup/journal/receipt. Handles close after read/limit failure; close failure also fails the operation. The historical `lstat`/open gap was still open at this step.
 
-Am 25. Oktober 2026 wurde der unprivilegierte Fixture-Store weiter ergänzt. Bisher lud `Data(contentsOf:)` die ganze Datei, bevor das 1-MiB-Limit geprüft wurde. Der Store liest nun in Chunks von höchstens 64 KiB und insgesamt höchstens 1 MiB plus einem Prüfbyte. Das gilt für Fixture, Backup, Journal und Receipt. Der Handle wird auch nach Lese-/Limitfehlern geschlossen; ein Schließfehler lässt die Operation ebenfalls fehlschlagen. Die bestehende Lücke zwischen `lstat` und Öffnen bleibt ausdrücklich offen.
+Apply now rejects resulting content over 1 MiB before backup/journal, avoiding an oversized write followed by failed readback from valid limit-sized input. Tests cover empty/chunk boundaries/exact limit/one byte over/double size/append overflow. Rejection preserves fixture and creates no artifacts. Oversized recovery backup preserves target/open journal and blocks applies.
 
-Zusätzlich stoppt Apply einen Zielinhalt über 1 MiB vor Backup und Journal. Damit erzeugt ein gültiger Ausgangsstand am Limit keinen übergroßen Write mit anschließend fehlschlagendem Readback. Neue Tests prüfen leere Dateien, Chunkgrenzen, exakt 1 MiB, ein Byte darüber, doppelte Größe und das Überschreiten durch Blockanhängen. Abgewiesenes Apply erhält die Fixture und erzeugt keine Transaktionsartefakte. Ein übergroßes Recovery-Backup lässt Ziel und offenes Journal unverändert; weitere Applies bleiben gesperrt.
+Debug all-target build/tests passed: **20 functions**; strict recursive formatting passed, exit 0. Same cache warnings/local caches; direct source review, no Git yet. No updated Output artifacts, system access, authorization, Release/signature/UI/VM checks. Gate 0 open; phase 1 had not started at this point.
 
-Verifikation mit den oben dokumentierten Befehlen: Debug-Build aller Targets und Swift-Testing-Suite bestanden (`Test run with 20 tests in 0 suites passed`); rekursive strikte Formatprüfung bestanden, Exit 0. Die unveränderten SwiftPM-Warnungen über nicht beschreibbare nutzerweite Caches bleiben; verwendet wurden die lokalen `/tmp`-Caches. Die geänderten Quellen und Tests wurden direkt geprüft; weiterhin kein Git-Repository im Arbeitsordner.
+## Follow-up – Validate the opened read object
 
-Die vorhandenen Output-App-/ZIP-Artefakte wurden nicht neu erstellt. Keine echte Systemdatei geöffnet oder verändert, keine Systemautorisierung aufgerufen. Gate 0 bleibt offen und Phase 1 unbegonnen; VM-, Release-/Signatur- und UI-Prüfungen wurden nicht ausgeführt.
+October 25, 2026. Replaced `lstat` then reopen with `open(O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)` and `fstat` on that descriptor: regular file, one hardlink, current-user owner. Bounded reads use that descriptor; validation/read failures close it and close errors are not swallowed. This supersedes the earlier read-open gap; path-based writing is unchanged.
 
-## Fortsetzung: Prüfung des tatsächlich geöffneten Leseobjekts
+Two new parameterized functions cover directories/FIFOs/dangling symlinks at fixture path and symlinks/hardlinks on backup/journal/receipt. Recovery/restore rejects them, preserving target/referenced bytes/directory entries; open journals still block apply. Existing limit/link/apply/recovery cases pass.
 
-Am 25. Oktober 2026 wurde ausschließlich das Lesen im unprivilegierten Fixture-Store weiterentwickelt. Statt `lstat` mit anschließendem erneutem Öffnen verwendet es nun `open` mit `O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC` und prüft per `fstat` den tatsächlich geöffneten Dateideskriptor auf regulären Dateityp, genau einen Hardlink und den eigenen Nutzer als Eigentümer. Der so geprüfte Deskriptor wird für das begrenzte Lesen verwendet und auch nach Validierungs- oder Lesefehlern geschlossen. Ein Schließfehler wird nicht verschluckt. Diese Ergänzung ersetzt die oben dokumentierte Lese-Lücke; der pfadbasierte Schreibweg bleibt unverändert.
+Debug all-target build/tests passed: **22 functions**; strict recursive formatting passed, exit 0. Same cache warnings/local caches, direct source/test/document review, no Git yet. No deterministic race/multiprocess/fsync/durability proof, protection against swapped parents/concurrent in-place changes, or root approval. Write check/replace gap remains. No updated artifacts or Release/signature/GUI/VM rerun; no hosts access/authorization. Gate 0 open; phase 1 unstarted then.
 
-Zwei neue parametrisierte Testfunktionen prüfen Verzeichnis, FIFO und verwaisten Symlink am Fixturepfad sowie Symlinks und Hardlinks an Backup, Journal und Receipt. Recovery/Restore verweigert diese Artefakte, lässt Zielbytes, referenzierte Bytes und vorhandene Verzeichniseinträge unverändert; offene Journale blockieren weiter Apply. Die bestehenden Größen-, Link-, Apply- und Recoverytests bestehen ebenfalls.
+## Follow-up – Journaled fixture restore
 
-Verifikation mit den oben dokumentierten Befehlen: Debug-Build aller Targets und Swift-Testing-Suite bestanden (`Test run with 22 tests in 0 suites passed`); `xcrun swift-format lint --strict --recursive` bestanden, Exit 0. SwiftPM meldete die weiterhin nicht beschreibbaren nutzerweiten Cacheverzeichnisse; die lokalen `/tmp`-Caches wurden verwendet. Quellen, Tests und Dokumentationsänderungen wurden direkt geprüft; der Arbeitsordner ist weiterhin kein Git-Repository.
+October 25, 2026. `restoreOriginal` previously replaced/read back directly without journal. Apply/restore now share commit: before-backup, journal, revision check, replacement, readback, receipt. Internal operation enum selects fixed artifact names, never request paths. Restore backs up immediate current state to `restore-before.bin`, records `restore-receipt.json`, and preserves original `original.bin`/`receipt.json` bytes. Recovery checks the operation-specific backup and reconstructs before/after outcomes without automatically writing back.
 
-Dieser Testlauf beweist keinen Schutz bei ausgetauschten Elternverzeichnissen oder konkurrierenden Änderungen am bereits geöffneten Inode. Kein deterministischer Race-/Mehrprozesstest, keine fsync-/Durabilityprüfung und keine Freigabe für Root. Die Lücke zwischen Vorabprüfung und Ersetzen beim Schreiben bleibt offen. Neue Release-/Signatur-, GUI- oder VM-Prüfungen wurden nicht ausgeführt; vorhandene Output-App-/ZIP-Artefakte wurden nicht aktualisiert. Keine Systemhosts-Datei geöffnet oder geändert, keine Systemautorisierung angefordert. Gate 0 bleibt offen, Phase 1 unbegonnen.
+Four new functions include five failure boundaries: before backup, after backup/journal/replacement/receipt. Open restore journal blocks apply/restore. Recovery permits retry; already restored state is artifact-free no-op. Also checked stale digest, unchanged original apply artifacts, distinct restore receipt/new transaction ID, corrupt restore backup, external change after interruption. Corrupt backup/foreign current bytes preserve target/journal.
 
-## Fortsetzung: journalisierte Fixture-Wiederherstellung
+Debug all-target build/tests passed: **26 functions**; strict recursive formatting passed, exit 0. Same cache warnings, direct source review, no Git. Interruptions remain injected within one session, not kills/restart/multiprocess/fsync/power loss. Path-writer limits remain; no root approval. Internal journal format changed without old-journal migration; prototype never reopens old sessions. No artifact update, Release/signature/GUI/VM rerun, hosts access, authorization. Gate 0 open; phase 1 unstarted then.
 
-Am 25. Oktober 2026 wurde ausschließlich der lokale Phase-0-Prototyp ergänzt. `restoreOriginal` verwendete zuvor direktes Ersetzen und Readback ohne Transaktionsjournal. Apply und Restore verwenden nun eine gemeinsame Commitfunktion: Vorher-Backup, Journal, Revisionsprüfung, Ersetzen, Readback und Receipt. Ein internes Enum im Journal wählt feste Artefaktnamen für Apply bzw. Restore; kein Request kann einen Pfad bestimmen. Restore sichert den unmittelbar vorherigen Stand in `restore-before.bin` und bestätigt ihn über `restore-receipt.json`. Das ursprüngliche `original.bin` und `receipt.json` bleiben dabei byteidentisch erhalten. Recovery prüft das zur Operation gehörende Backup und rekonstruiert vor/nach Commit ohne automatisches Zurückschreiben.
+## Follow-up – Reject unsafe artifacts before writes
 
-Vier neue Testfunktionen, darunter eine mit fünf Unterbrechungspunkten, prüfen Fehler vor Backup, nach Backup, nach Journal, nach Ersetzen und nach Receipt. Offenes Restore-Journal sperrt weitere Applies und Restores. Nach Recovery ist ein erneuter Restore möglich; ein bereits restaurierter Stand ist ein No-op ohne neue Artefaktwrites. Zusätzlich geprüft: veralteter Digest, unveränderte ursprüngliche Apply-Artefakte, eigenes Restore-Receipt mit neuer Transaktions-ID, beschädigtes Restore-Backup sowie externe Änderungen nach unterbrochenem Restore. Bei beschädigtem Backup oder fremdem Iststand bleiben Ziel und Journal erhalten.
+October 25, 2026. Former `fileExists` followed journal symlinks, missing dangling links: apply could replace backup before failing journal write, and recovery falsely reported clean. Presence now uses `lstat`: any journal entry blocks apply/restore; other lookup errors propagate. Recovery validates the object through the descriptor reader.
 
-Verifikation mit den oben dokumentierten Debug-Test- und Formatbefehlen: Debug-Build aller Targets bestanden, `Test run with 26 tests in 0 suites passed`; `xcrun swift-format lint --strict --recursive` bestanden, Exit 0. SwiftPM meldete unverändert nicht beschreibbare nutzerweite Cacheverzeichnisse; die lokalen `/tmp`-Caches wurden verwendet. Geänderte Quellen und Tests wurden direkt geprüft; der Arbeitsordner enthält weiterhin kein Git-Repository.
+Shared commit now checks existing fixed backup/receipt destinations for regular type, owner, one hardlink before the first backup write. Previously unsafe receipt detection happened after fixture replacement. Actual changes require this preflight; no-op remains artifact-free.
 
-Die Tests simulieren Unterbrechungen in derselben Sitzung. Keine Prozess-Kill-/Neustart-, Mehrprozess-, fsync- oder Stromausfallprüfung. Die bisherigen Grenzen des pfadbasierten Writers bleiben bestehen; keine Root-Freigabe. Das interne Journalformat wurde geändert, ohne Migration alter Experimentjournale; bestehende Sitzungsverzeichnisse werden vom Prototyp ohnehin nicht wieder geöffnet. Vorhandene Output-App-/ZIP-Artefakte wurden nicht aktualisiert; keine erneute Release-/Signatur-, GUI- oder VM-Prüfung. Keine Systemhosts-Datei geöffnet oder verändert, keine Systemautorisierung angefordert. Gate 0 bleibt offen, Phase 1 unbegonnen.
+Two new parameterized functions cover **25 cases**: five unsafe journal types and five file types at four apply/restore artifact paths (dangling symlink, symlink, hardlink, directory, FIFO). Rejection preserves fixture, backup/receipt/reference bytes, entries. Bad journals block and are never treated as clean.
 
-## Fortsetzung: unsichere Transaktionsartefakte vor Writes abweisen
+Debug all-target build/tests passed: **28 functions**; formatting passed, exit 0. Same caches/warnings, direct review, no Git. Preflight protects against existing unsafe entries, not concurrent swaps. No root/multiprocess/kill/fsync evidence, artifact update, Release/signature/GUI/VM rerun, hosts access, authorization. Gate 0 open; phase 1 unstarted then.
 
-Am 25. Oktober 2026 wurde der lokale Fixture-Store weiter korrigiert. Die bisherige `fileExists`-Prüfung folgte Journal-Symlinks und übersah dabei einen verwaisten Symlink. Apply konnte dadurch bereits ein Backup ersetzen, bevor das Schreiben des Journals scheiterte; Recovery meldete fälschlich eine saubere Sitzung. Die Anwesenheitsprüfung verwendet jetzt `lstat`, behandelt jeden vorhandenen Journaleintrag als offen und reicht andere Lookupfehler als Fehler weiter. Apply und Restore bleiben gesperrt; Recovery prüft das vorhandene Objekt über den bestehenden deskriptorgeprüften Leser und weist unsichere Dateitypen ab.
+## Follow-up – Stored transaction consistency
 
-Zusätzlich prüft die gemeinsame Commitfunktion vor dem ersten Backupwrite die festen Backup- und Receiptziele auf regulären Dateityp, eigenen Eigentümer und genau einen Hardlink, sofern diese bereits existieren. Zuvor wurde ein unsicheres Receiptziel erst nach Ersetzen der Fixture erkannt. Die Vorabprüfung betrifft tatsächliche Änderungen; No-op bleibt ohne Transaktionswrites.
+October 25, 2026. A decodable journal/matching backup alone previously sufficed; equal before/after digests could misclassify an unexecuted write as committed and delete the journal. Recovery/restore now validate receipts before mutations: both digests are 64 lowercase hexadecimal characters, differ, and `unchanged` is false. No-op returns an unsaved result. Journal/apply-receipt JSON failures become `recoveryRequired`; type/I/O/size failures remain distinct.
 
-Zwei neue parametrisierte Testfunktionen prüfen insgesamt 25 Fälle: fünf unsichere Journaltypen sowie fünf Dateitypen an jeweils vier Apply-/Restore-Artefaktpfaden. Geprüft wurden verwaiste Symlinks, Symlinks, Hardlinks, Verzeichnisse und FIFOs. Bei Abweisung bleiben Fixture, übrige Backup-/Receiptbytes, referenzierte fremde Bytes und Verzeichniseinträge erhalten. Ein defekter Journaleintrag blockiert Apply und Restore und wird bei Recovery nicht als sauber akzeptiert.
+Two parameterized functions cover **18 cases**: bad before/after digest, equal digests, contradictory `unchanged`, truncated JSON, missing digest on apply/restore journals and apply receipt before restore. Rejected recovery preserves all names/bytes/journal and blocks transactions. Invalid apply receipt stops restore without new artifacts. Existing interruption/no-op/restore cases pass.
 
-Verifikation mit den oben dokumentierten Befehlen: Debug-Build aller Targets und Swift-Testing-Suite bestanden (`Test run with 28 tests in 0 suites passed`); rekursive strikte Formatprüfung bestanden, Exit 0. SwiftPM meldete weiterhin die nicht beschreibbaren nutzerweiten Cacheverzeichnisse; verwendet wurden die lokalen `/tmp`-Caches. Geänderte Quellen und Tests wurden direkt geprüft; weiterhin kein Git-Repository im Arbeitsordner.
+Debug all-target build/tests passed: **30 functions**; formatting passed, exit 0. Same caches/warnings, direct review, no Git. This is consistency validation, not authenticity/transport proof. At this step extra/duplicate JSON keys remained unguarded; the next step supersedes that limit. No updated artifacts or Release/signature/GUI/VM rerun; no hosts access/authorization. Gate 0 open; phase 1 unstarted then.
 
-Die Vorabprüfung schützt vor bereits vorhandenen unsicheren Einträgen, schließt aber keine konkurrierenden Pfad-/Inodeänderungen zwischen Prüfung und Ersetzen aus. Keine Root-Freigabe, keine Mehrprozess-, Prozess-Kill- oder fsync-Prüfung. Release-/Signatur-, GUI- und VM-Prüfungen wurden nicht ausgeführt; bestehende Output-App-/ZIP-Artefakte wurden nicht neu erstellt. Keine Systemhosts-Datei geöffnet oder verändert, keine Systemautorisierung angefordert. Gate 0 bleibt offen, Phase 1 unbegonnen.
+## Follow-up – Unambiguous recovery JSON schemas
 
-## Fortsetzung: gespeicherte Transaktionsdaten auf Konsistenz prüfen
+October 25, 2026. `TransactionJSON` validates fixed journal/receipt schemas before Codable. Decoded-key duplicates, including escapes, extra/missing fields, wrong types, trailing data, and excess nesting become `recoveryRequired`. Bounded descriptor reads precede it; consistency checks remain. Validation happens before writes. This closes the previous extra/duplicate-key limit.
 
-Am 25. Oktober 2026 wurde die lokale Recovery ergänzt. Bisher genügte ein decodierbares Journal mit passendem Backup-Digest. Beispielsweise konnte ein beschädigtes Journal mit identischem Vorher-/Nachher-Digest einen nicht ausgeführten Write als committed einstufen und anschließend gelöscht werden. Recovery und Restore prüfen gespeicherte Receipts jetzt vor jeder weiteren Änderung: beide Digests müssen 64 kleingeschriebene hexadezimale Zeichen enthalten, unterschiedlich sein und `unchanged` muss `false` sein. No-op-Ergebnisse werden weiterhin nur zurückgegeben und erzeugen keine gespeicherte Transaktion. Fehler beim JSON-Decoding von Journal oder Apply-Receipt werden als `recoveryRequired` gemeldet; Dateityp-, I/O- und Größenfehler bleiben separat erhalten.
+Integration covers apply/restore journals/apply receipt, escaped duplicates, nested/trailing values, duplicate outer `kind`/`receipt`; rejection preserves every name/byte and open-journal block. Two new parameterized functions cover every truncation boundary and valid escaped keys/whitespace. **32 functions** total.
 
-Zwei neue parametrisierte Testfunktionen prüfen 18 Fälle: ungültiger Vorher-Digest, ungültiger Nachher-Digest, gleiche Digests, widersprüchliches `unchanged`, abgeschnittenes JSON und fehlender Digest; jeweils an Apply-/Restore-Journalen sowie am Apply-Receipt vor Restore. Nach abgewiesener Recovery bleiben alle Artefaktnamen und Bytes einschließlich Journal erhalten, weitere Applies und Restores bleiben gesperrt. Ein beschädigtes Apply-Receipt verhindert Restore ohne neue Transaktionsartefakte oder veränderte Bytes. Die bestehenden Unterbrechungs-, No-op- und Restoretests bestehen weiterhin.
+Debug all-target build/tests and strict recursive formatting passed, exit 0; `/tmp/machosts-phase0-latest-test.log`. Same user-cache warnings/local caches, direct review, no Git. No authenticity/immutable-storage/race/multiprocess/durability proof, artifact update, Release/signature/GUI/VM rerun, hosts access, or authorization. Gate 0 open; phase 1 unstarted then.
 
-Verifikation mit den oben dokumentierten Debug-Test- und Formatbefehlen: Debug-Build aller Targets bestanden; `Test run with 30 tests in 0 suites passed`; rekursive strikte Formatprüfung bestanden, Exit 0. SwiftPM meldete weiterhin nicht beschreibbare nutzerweite Cacheverzeichnisse; die lokalen `/tmp`-Caches wurden verwendet. Quellen, Tests und Dokumentation wurden direkt geprüft; kein Git-Repository im Arbeitsordner.
+## Follow-up – Reject files writable by others
 
-Diese Prüfung erkennt die beschriebenen Format-/Konsistenzfehler, beweist aber keine Authentizität gespeicherter Daten und keine sichere Requestübergabe. Zusätzliche oder doppelte JSON-Schlüssel in lokalen Journalen/Receipts werden damit nicht gesondert abgewehrt. Die bisherigen Schreib-/Nebenläufigkeits- und Durabilitygrenzen bleiben offen. Keine erneute Release-/Signatur-, GUI- oder VM-Prüfung; bestehende Output-App-/ZIP-Artefakte wurden nicht aktualisiert. Keine Systemhosts-Datei geöffnet oder verändert, keine Systemautorisierung angefordert. Gate 0 bleibt offen, Phase 1 unbegonnen.
+October 25, 2026. Owner checks alone did not exclude other-user POSIX write access. Descriptor reads and path-write preflight now reject `mode & 0022 != 0` as `unsafeFile` for fixture/backup/journal/receipt, including restore artifacts. Existing unsafe entries are never accepted by repairing mode with chmod.
 
-## Fortsetzung: eindeutige JSON-Schemata für Recovery-Daten
+Four new parameterized functions cover **18 cases**: fixture modes 0620/0602/0666; group/other write on four output types and apply journal/backup during recovery. Rejection preserves names/bytes/open-journal blocking. Restore backup/receipt input checks covered. Modes 0400/0600/0644 remain readable.
 
-Am 25. Oktober 2026 wurde ausschließlich der lokale Phase-0-Prototyp ergänzt. Vor dem Codable-Decoding prüft `TransactionJSON` nun die festen Journal-/Receipt-Schemata. Doppelte Schlüssel werden anhand decodierter Zeichenketten erkannt, einschließlich Unicode-Escapes. Zusätzliche oder fehlende Felder, falsche Werttypen, zusätzliche Daten nach dem Objekt und über die feste Journal-/Receiptstruktur hinausgehende Verschachtelung führen zu `recoveryRequired`. Das bestehende begrenzte, deskriptorgeprüfte Lesen findet davor statt. Die Prüfung erfolgt vor Recovery- oder Restore-Writes; die bisherigen Digest-/Konsistenzprüfungen bleiben erhalten. Das ersetzt die im vorherigen Abschnitt beschriebene Grenze für zusätzliche und doppelte Schlüssel.
+Debug all-target build/tests passed: **36 functions**; strict recursive formatting passed, exit 0; `/tmp/machosts-phase0-latest-test.log`. Same cache warnings/local caches; direct source review, no Git then. Mode-bit checks do not inspect ACLs or close concurrent chmod/path/write/multiprocess/durability gaps. No root approval or new Release/signature/GUI/VM checks; old artifacts unchanged. No hosts access/authorization. Gate 0 open; phase 1 unstarted then.
 
-Die erweiterten Integrationstests prüfen Apply- und Restore-Journale sowie das Apply-Receipt auf zusätzliche Felder, doppelte Felder einschließlich escaped Schlüsseln, verschachtelte Werte und nachgestellte JSON-Daten. Doppelte `kind`-/`receipt`-Felder werden zusätzlich am äußeren Journal geprüft. Nach Abweisung bleiben alle Artefaktnamen und Bytes erhalten; ein offenes Journal sperrt weitere Transaktionen. Zwei neue parametrisierte Testfunktionen prüfen jede Abschneidestelle gültiger Journal-/Receiptbytes sowie erfolgreiches Recovery/Restore mit escaped Schlüsseln und JSON-Leerzeichen. Insgesamt 32 Testfunktionen, darunter parametrisierte Fälle.
+## Next step
 
-Verifikation mit den oben dokumentierten Debug-Test- und Formatbefehlen: Debug-Build aller Targets bestanden; `Test run with 32 tests in 0 suites passed`; `xcrun swift-format lint --strict --recursive` bestanden, Exit 0. Testprotokoll lokal unter `/tmp/machosts-phase0-latest-test.log`. SwiftPM meldete weiterhin nicht beschreibbare nutzerweite Caches; verwendet wurden die lokalen `/tmp`-Caches. Geänderte Quellen und Tests wurden direkt geprüft; im Arbeitsordner ist weiterhin kein Git-Repository vorhanden.
-
-Die Schemaprüfung beweist keine Authentizität oder unveränderliche Speicherung. Pfad-/Schreibraces, Mehrprozessschutz und Durability bleiben offen. Keine erneute Release-/Signatur-, GUI- oder VM-Prüfung; vorhandene Output-App-/ZIP-Artefakte wurden nicht aktualisiert. Keine Systemhosts-Datei geöffnet oder verändert, keine Systemautorisierung angefordert. Gate 0 bleibt offen, Phase 1 unbegonnen.
-
-## Fortsetzung: fremdbeschreibbare Dateien abweisen
-
-Am 25. Oktober 2026 wurde ausschließlich der unprivilegierte Phase-0-Fixture-Store ergänzt. Die bisherige Prüfung auf eigenen Eigentümer schloss POSIX-Schreibrechte anderer Nutzer nicht aus. Der deskriptorgeprüfte Leser und die pfadbasierte Schreibvorabprüfung weisen jetzt Dateien mit Gruppen- oder Fremdschreibrechten (`mode & 0022 != 0`) als `unsafeFile` ab. Unsichere vorhandene Artefakte werden nicht durch nachträgliches chmod akzeptiert. Die Regeln gelten für Fixture, Backup, Journal und Receipt einschließlich der Restore-Artefakte.
-
-Vier neue parametrisierte Testfunktionen prüfen 18 Fälle: unsichere Fixture-Modi 0620, 0602 und 0666; Gruppen-/Fremdschreibrechte an allen vier Apply-/Restore-Ausgabearten sowie an Apply-Journal und -Backup während Recovery. Bei Abweisung bleiben sämtliche Artefaktnamen und Bytes unverändert; offene Journale sperren weitere Transaktionen. Die Eingangsprüfung von Backup und Receipt vor Restore ist ebenfalls geprüft. Modi 0400, 0600 und 0644 bleiben lesbar.
-
-Verifikation mit den oben dokumentierten Befehlen: Debug-Build aller Targets und Swift-Testing-Suite bestanden (`Test run with 36 tests in 0 suites passed`); rekursive strikte Formatprüfung bestanden, Exit 0. Testprotokoll: `/tmp/machosts-phase0-latest-test.log`. SwiftPM meldet weiterhin nicht beschreibbare nutzerweite Caches; verwendet wurden die lokalen `/tmp`-Caches. Quellen und Tests direkt geprüft; weiterhin kein Git-Repository im Arbeitsordner.
-
-Die Prüfung betrifft POSIX-Modusbits, keine ACLs. Sie schließt weder spätere Rechteänderungen noch die bekannten Pfad-/Schreibraces, Mehrprozess- und Durabilitylücken. Keine Root-Freigabe. Release-/Signatur-, GUI- und VM-Prüfungen nicht wiederholt; Output-Artefakte nicht aktualisiert. Keine Systemhosts-Datei geöffnet oder verändert, keine Systemautorisierung angefordert. Gate 0 bleibt offen, Phase 1 unbegonnen.
-
-## Nächster Schritt
-
-Nach der vom Nutzer gewünschten Vertagung der VM-Tests endet dieser Arbeitsabschnitt bei der lokalen Vorbereitung. Für Gate 0 den Kandidaten aus [ADR 0001](../decisions/0001-privileged-write.md) weiter konkretisieren und die fehlenden Tests in einer bestätigten Wegwerf-VM nachholen. Unabhängig davon mit Phase 1 gemäß ADR 0002 fortfahren; der produktive privilegierte Writer bleibt bis zum Nachweis gesperrt. Die Frage nach der Produktrichtung ist weiterhin entschieden; offen sind technische Nachweise, keine erneute Freigabe der bereits vereinbarten Produktziele.
+VM postponement ends this local-preparation milestone. Further specify [ADR 0001](../decisions/0001-privileged-write.md)'s candidate and obtain missing evidence in a confirmed disposable VM. Independently continue under ADR 0002; production writer remains blocked. Product direction is already decided; open work is technical proof, not renewed approval of agreed goals.

@@ -1,19 +1,31 @@
 # MacHosts
 
-Eine kleine native macOS-App zum Verwalten und gezielten Aktivieren von Hosts-Einträgen für die lokale Entwicklung. Eigene Implementierung in Swift mit SwiftUI; macOS 27 und Apple Silicon!
+A small native macOS app for managing and selectively activating hosts entries for local development. Independently implemented in Swift with SwiftUI for macOS 27 and Apple Silicon.
 
-**Projektstatus: Phasen 1–3 lokal geprüft, Phase 4 teilweise implementiert; Gates 0 und 4 offen.** Die native Projektbasis liegt in `MacHosts.xcodeproj`, die Swift-Module in `Packages/MacHostsKit`. Die Startansicht ist deutsch/englisch lokalisiert. Core und Services bieten Parser, Profile, Konfliktprüfung, unveränderliche Vorschau, atomaren Workspace-Speicher, Autosave und lokale Recovery. Hinzu kommen Apply-Koordination, persistente App-Absicht, Schema-2-Migration und Receipt-/Readback-Abgleich mit Testadaptern; der interne Transaktionskern ist einschließlich Prozessneustarts an privaten Dateifixtures geprüft. Ein unprivilegierter Beobachtungsdienst erkennt externe Änderungen einschließlich atomaren Dateiersatzes; seine App-Anbindung mit Receipt-/Intentabgleich ist implementiert und gebaut, die native UI-/Wake-Abnahme bleibt offen. Die Recovery diagnostiziert fehlende Journale, aktive Worker und unklare Ausgänge getrennt und erhält verwaiste Absichten. Die produktive Systemdateitransaktion bleibt offen. Diese Dienste sind noch nicht in eine Profiloberfläche eingebunden; der Systemwriter bleibt nicht verfügbar. Unabhängige Entwicklung läuft gemäß [ADR 0002](docs/decisions/0002-deferred-gate-0.md) weiter, während sichere Autorisierung und VM-Nachweise später folgen.
+**Project status: phases 1–3 verified locally; phases 4 and 5 partially implemented. Gates 0, 4, and 5 remain open.** The native Xcode project and Swift package provide parsing/composition, immutable plans, atomic workspace storage, autosave, and local recovery. Apply coordination and the internal transaction engine are verified on private fixtures, including actual process restarts and durable orphan-intent retirement. The production privileged writer remains unavailable.
 
-Der frühere [Phase-0-Prototyp](Experiments/AuthorizationProbe/README.md) bleibt separat erhalten. Seine vorhandenen App-/ZIP-Artefakte stammen aus einem früheren Build. Buildbefehle und Toolchain: [Entwicklung](docs/ENTWICKLUNG.md); tatsächliche Ergebnisse: [Phase 1](docs/verification/phase-1.md), [Phase 2](docs/verification/phase-2.md), [Phase 3](docs/verification/phase-3.md), [Phase 4](docs/verification/phase-4.md). Der formale Clean-Checkout-/CI-Nachweis bleibt offen.
+The local interface includes profiles, trash, folders, cross-profile search, a native editor with syntax colors/line numbers, read-only system contents, and a frozen read-only change preview with mapping differences and conflict provenance. The app remains localized in German and English. Latest verification: 139 package tests, formatting, and Release/Debug test builds passed. The previous missing CoreSimulator framework build blocker no longer reproduces. Full native UI/wake acceptance remains open. See [phase 5](docs/verification/phase-5.md) for results and limits. Independent development continues under [ADR 0002](docs/decisions/0002-deferred-gate-0.md); secure authorization/VM verification remain deferred.
 
-## Dokumentation
+The earlier [phase-0 prototype](Experiments/AuthorizationProbe/README.md) remains separate. Its existing app/ZIP artifacts come from an earlier build. Build commands and toolchain details: [Development](docs/DEVELOPMENT.md). Actual results: [Phase 1](docs/verification/phase-1.md), [Phase 2](docs/verification/phase-2.md), [Phase 3](docs/verification/phase-3.md), [Phase 4](docs/verification/phase-4.md). Formal clean-checkout/CI verification remains open.
 
-- [Projektskizze und Produktentscheidungen](docs/PROJEKTSKIZZE.md)
-- [Architektur und Sicherheitsverträge](docs/ARCHITEKTUR.md)
-- [Phasenplan mit Abnahmekriterien](docs/UMSETZUNGSPLAN.md)
-- [Coding-Anweisungen und Startprompt für Codex](docs/CODEX-ANWEISUNGEN.md)
-- [Recherche, Quellen und SwitchHosts-Codeanalyse](docs/RECHERCHE.md)
+Repository documentation and developer-facing text are in English. The MacHosts app retains its German and English localization.
 
-Version 1 umfasst lokale und entfernte Profile, einzelne Eintragsschalter, Ordner, Editor, Menüleiste, Konfliktprüfung, Vorschau, Backups, Wiederherstellung sowie Import/Export einschließlich einer ausdrücklich dokumentierten SwitchHosts-Kompatibilität. Änderungen bleiben bis zur bewussten Deaktivierung bestehen.
+## Documentation
 
-Geplant ist ein Download mit Ad-hoc-Signatur, ohne Developer ID, Notarisierung, Apple-Account oder App Store. Die Erststartfreigabe erfolgt lokal in macOS. Der Quellcode steht unter der [MIT-Lizenz](LICENSE).
+- [Product outline and decisions](docs/PRODUCT-OUTLINE.md)
+- [Architecture and safety contracts](docs/ARCHITECTURE.md)
+- [Implementation phases and acceptance criteria](docs/IMPLEMENTATION-PLAN.md)
+- [Coding instructions and Codex prompts](docs/CODEX-INSTRUCTIONS.md)
+- [Research, sources, and SwitchHosts code analysis](docs/RESEARCH.md)
+- [Local development and verification commands](docs/DEVELOPMENT.md)
+- [Verification reports and decision records](docs/README.md)
+
+The planned version 1 scope covers local and remote profiles, individual entry switches, folders, an editor, menu bar access, conflict checking, previews, backups, recovery, and import/export with explicitly documented SwitchHosts compatibility. Changes remain active until explicitly disabled.
+
+Distribution is planned as an ad-hoc-signed download without Developer ID, notarization, an Apple account, or the App Store. First-launch approval takes place locally in macOS. Source code is available under the [MIT License](LICENSE).
+
+
+Local `.hosts` exchange is implemented: review UTF-8 text before importing a new
+inactive profile, or export original source/enabled entries to a new file. The full
+139-test package run and Release/Debug test builds passed. Native file-panel acceptance, remote
+profiles, JSON and SwitchHosts exchange remain open. See [phase 7](docs/verification/phase-7.md).

@@ -21,6 +21,24 @@ public enum SystemFileObservation: Equatable, Sendable {
   }
 }
 
+/// Bytes and diagnostics from the same bounded, identity-checked read as the digest.
+/// Unsupported encodings remain unavailable as text; no lossy conversion is performed.
+public struct SystemFileContents: Equatable, Sendable {
+  public let digest: ContentDigest
+  public let source: String?
+  public let diagnostics: [HostsDiagnostic]
+
+  init(data: Data) {
+    digest = ContentDigest(data)
+    let document = HostsDocument.parse(data, context: .system)
+    diagnostics = document.diagnostics
+    source =
+      diagnostics.contains { $0.code == .unsupportedEncoding }
+      ? nil
+      : String(data: data, encoding: .utf8)
+  }
+}
+
 /// The cancellation handler owns the descriptor until Dispatch has stopped delivering events.
 private final class DirectoryWatch: Sendable {
   private let source: Mutex<(any DispatchSourceFileSystemObject)?>
@@ -62,6 +80,7 @@ public actor SystemFileMonitor {
   private var fileWatch: DirectoryWatch?
   private var continuation: AsyncStream<SystemFileObservation>.Continuation?
   private var pendingRead: Task<Void, Never>?
+  private var contents: SystemFileContents?
   private var last: SystemFileObservation?
   private var watchInvalid = false
   private var generation: UInt64 = 0
@@ -107,6 +126,7 @@ public actor SystemFileMonitor {
     fileWatch = nil
     continuation?.finish()
     continuation = nil
+    contents = nil
     last = nil
     watchInvalid = false
   }
@@ -119,16 +139,27 @@ public actor SystemFileMonitor {
     do {
       guard !watchInvalid else { throw SystemFileReadFailure.watchUnavailable }
       attachFileWatch()
-      observation = .readable(ContentDigest(try read()))
+      let data = try read()
+      let digest = ContentDigest(data)
+      if contents?.digest != digest { contents = SystemFileContents(data: data) }
+      observation = .readable(digest)
     } catch let error as SystemFileReadFailure {
       observation = .unreadable(error)
     } catch {
       observation = .unreadable(.unavailable)
     }
+    if case .unreadable = observation { contents = nil }
     if observation != last {
       last = observation
       continuation?.yield(observation)
     }
+  }
+
+  /// A queued observation may already have been superseded. Never pair its digest
+  /// with different bytes, or expose a previous successful read after a failure.
+  public func contents(matching observation: SystemFileObservation) -> SystemFileContents? {
+    guard case .readable(let digest) = observation, contents?.digest == digest else { return nil }
+    return contents
   }
 
   private func stop(ifGeneration token: UInt64) {

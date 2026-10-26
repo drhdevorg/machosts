@@ -110,24 +110,7 @@ public actor ApplyCoordinator {
       try Task.checkCancellation()
       let fresh = try await writableSnapshot()
       guard snapshot.generation == fresh.generation else { throw ApplyCoordinatorFailure.stalePlan }
-      let document = HostsDocument.parse(system, context: .system)
-      let actualManaged = document.managedBlock.map { ContentDigest(system.subdata(in: $0)) }
-      if let applied = fresh.applied {
-        if let expected = applied.managedDigest {
-          guard actualManaged == expected else { throw PlanFailure.managedBlockChanged }
-        } else if ContentDigest(system) != applied.receipt.afterDigest,
-          actualManaged != nil || applied.separatorEvidence != nil
-        {
-          // Legacy receipts have no independent block digest; require an exact file match.
-          throw PlanFailure.managedBlockChanged
-        }
-      } else if actualManaged != nil {
-        throw PlanFailure.managedBlockChanged
-      }
-      let plan = try ApplyPlan.prepare(
-        workspace: fresh.draft, system: system,
-        expectedManagedDigest: fresh.applied?.managedDigest,
-        separatorEvidence: fresh.applied?.separatorEvidence)
+      let plan = try WorkspaceApplyPlanner.prepare(snapshot: fresh, system: system)
       preview = (fresh.draft, plan)
       currentState = .previewReady(plan.id)
       return plan

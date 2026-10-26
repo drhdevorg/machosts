@@ -1,31 +1,31 @@
-# ADR 0003 – Verwaiste Apply-Absichten dauerhaft stilllegen
+# ADR 0003 – Durably retire orphaned apply intents
 
-Datum: 25. Oktober 2026. Status: interner Vertrag implementiert und an privaten Fixtures geprüft; keine Freigabe eines privilegierten Protokolls. Gate 0 und Gate 4 bleiben offen.
+Date: October 25, 2026. Status: internal contract implemented and verified on private fixtures; no approval of a privileged protocol. Gates 0 and 4 remain open.
 
 ## Problem
 
-Eine gespeicherte App-Absicht kann nach Prozessende ohne Systemjournal zurückbleiben. Der aktuelle Dateidigest beweist weder einen früheren Commit noch dessen Ausbleiben. Zudem könnte ein verzögerter Worker erst nach einem Recoveryversuch seinen Prozesslock erwerben. Ein fehlendes Journal bei momentan freiem Lock reicht deshalb nicht, um die Absicht gefahrlos zu löschen.
+A saved app intent can survive process termination without a system journal. The current file digest proves neither a historical commit nor its absence. A delayed worker could also acquire its process lock only after a recovery attempt. A missing journal and currently free lock therefore do not suffice to delete the intent safely.
 
-## Entscheidung
+## Decision
 
-Ein ausdrücklich angeforderter interner Vorgang `retireOrphan` legt eine dauerhafte Stilllegung für die konkrete Transaktion an. `ApplyRetirement` bindet Version 1, Transaktions-ID, Vorher-/Nachher-Digest und Workspace-Digest. Er enthält keine Profiltexte, Dateipfade, Befehle oder Autorisierungsdaten. Die Stilllegung ist kein Receipt und kein Nachweis, dass historisch niemals ein Write stattgefunden hat. Der neue Ausgang heißt ausdrücklich `retired`, getrennt von `notCommitted`.
+An explicitly requested internal `retireOrphan` operation creates a durable retirement record for the specific transaction. `ApplyRetirement` binds version 1, transaction ID, before/after digest, and workspace digest. It contains no profile text, paths, commands, or authorization data. Retirement is neither a receipt nor proof that no historical write occurred. The outcome is explicitly named `retired`, separately from `notCommitted`.
 
-1. Die App muss die noch offene Transaktions-ID benennen und die gemeinsame Recovery-Sperre halten. Neuere Entwurfsänderungen bleiben erlaubt. Keine automatische Stilllegung durch Dateibeobachtung oder normalen Recoveryabgleich.
-2. Der Systemadapter muss denselben exklusiven Prozesslock wie jeder Commit halten. Laufende Worker verhindern den Vorgang. Auch verzögerte Worker müssen nach Lockübernahme die Stilllegungen prüfen, bevor sie Backup, Journal oder Zielbytes schreiben.
-3. Stilllegung ist nur ohne Journal der betroffenen ID, ohne andere vorbereitete Transaktion und bei frisch gelesenen Vorher-Bytes erlaubt. Vorhandene Journale nutzen den bestehenden Recoverypfad. Nachher-Bytes, andere Bytes, Lesefehler und beschädigte Nachweise bleiben gesperrt.
-4. Der Adapter speichert die Stilllegung dauerhaft, liest sie zurück, synchronisiert Datei und Verzeichnis und prüft die unveränderte Zielidentität samt Bytes/Metadaten erneut. Ein erneuter Aufruf mit identischer Bindung ist idempotent; andere Bindungen derselben ID sind Fehler. Widersprüche zwischen Journal und Stilllegung blockieren.
-5. Jeder Commit weist eine stillgelegte ID mit `replay` ab, unabhängig von deren angefragten Digests oder Operationen. Die Stilllegung wird nach Auflösung der App-Absicht nicht gelöscht. Ohne nachgewiesenen Ausschluss aller alten Requests darf Retention diese Einträge nicht entfernen.
-6. Beim späteren Recovery synchronisiert der Adapter auch eine bereits sichtbare Stilllegung nochmals. Ein früherer Prozess könnte nach Rename und vor Verzeichnis-Sync gestorben sein. Ein fehlgeschlagener Sync erlaubt keine terminale Evidenz. Tests mit Prozessende sind kein Nachweis für Stromausfallsicherheit des Dateisystems.
-7. Die App validiert die unabhängige Stilllegung vollständig gegen ihre Absicht und liest die Systembytes nach der Evidenzprüfung erneut. Nur bei Vorher-Digest löst sie die Absicht ohne neuen Receipt auf. Älterer angewendeter Snapshot und neuerer Entwurf bleiben erhalten; das Ergebnis lautet `unconfirmed`. Ein späterer normaler Abgleich kann den älteren Receipt gesondert mit der aktuellen Datei vergleichen.
+1. The app must identify the still-open transaction and hold the shared recovery claim. Newer draft changes remain allowed. No automatic retirement through observation or normal reconciliation.
+2. The system adapter must hold the same exclusive process lock as every commit. Active workers prevent retirement. Delayed workers must check retirement records after acquiring the lock, before writing backups, journals, or target bytes.
+3. Retirement is allowed only without a journal for the ID, without another prepared transaction, and with freshly read before-bytes. Existing journals use the existing recovery path. After-bytes, other bytes, read errors, and corrupt evidence stay blocked.
+4. The adapter durably saves and reads back retirement, synchronizes file/directory, then rechecks unchanged target identity, bytes, and metadata. An identical binding is idempotent; a different binding for the same ID is an error. Contradictory journals and retirement records block progress.
+5. Every commit rejects a retired ID as `replay`, regardless of requested digests or operations. Retirement remains after resolving the app intent. Retention must not remove it without proving exclusion of all old requests.
+6. Later recovery synchronizes even an already visible retirement record again. An earlier process might have died after rename but before directory sync. Failed sync permits no terminal evidence. Process-termination tests do not establish filesystem power-loss durability.
+7. The app validates independent retirement evidence fully against its intent and rereads system bytes afterward. Only a before-digest match resolves the intent without a new receipt. An older applied snapshot and newer draft remain; the outcome is `unconfirmed`. Later normal reconciliation can separately compare the older receipt with the current file.
 
-Nach gespeichertem Sperreintrag können Lesefehler, Cancellation, externe Änderungen oder App-Save-Fehler die Auflösung verhindern. Die Absicht bleibt dann erhalten; die dauerhaft gesperrte Transaktion darf trotzdem nie erneut committen. Der nächste Neustart kann den Sperreintrag unabhängig wiederfinden. Auch ein früherer tatsächlicher Commit mit verlorenem Journal und inzwischen wiederhergestellten Vorher-Bytes erzeugt auf diesem Weg keinen erfundenen Erfolgs- oder Nicht-Commit-Nachweis.
+After recording retirement, read errors, cancellation, external changes, or app-save failures may prevent resolution. The intent then remains, but the durably retired transaction must never commit again. A later restart can rediscover the record independently. Even a historical commit with a lost journal and subsequently restored before-bytes creates no invented success or non-commit proof through this path.
 
-## Abgrenzung und Folgen
+## Scope and consequences
 
-Der Vertrag erweitert die bisherigen zulässigen terminalen Nachweise. Die Architekturregel „passende Bytes allein reichen nicht“ bleibt bestehen. Stilllegung ändert ausschließlich unabhängige Transaktionsnachweise und App-Daten, niemals die Zielbytes. Sie ersetzt keine kontrollierte Rücksicherung und ist bei Nachher-/Fremdbytes kein Ausweg.
+This extends the allowed terminal evidence. The architecture rule that matching bytes alone are insufficient remains. Retirement changes only independent transaction evidence and app data, never target bytes. It does not replace controlled restore and is no escape path for after/foreign bytes.
 
-Die Methode des Koordinators ist intern. Nur Testadapter implementieren sie; die Standardimplementierung wirft `integrationUnavailable`. Es gibt keine UI-Aktion und keinen CLI-Schalter zum Verwerfen von Absichten. Die Produktionsoberfläche bleibt bei verwaisten Absichten gesperrt. Workspace-Schema 2 bleibt unverändert.
+The coordinator method is internal. Only test adapters implement it; the default throws `integrationUnavailable`. There is no UI action or CLI switch for discarding intents. Production UI remains blocked on orphaned intents. Workspace schema 2 is unchanged.
 
-Vor produktiver Nutzung sind sichere Autorisierung, vertrauenswürdiger Speicher/Transport, begrenzte eindeutige Dekodierung, vollständige Metadatenprüfung und der Gate-0-Herkunftsnachweis erforderlich. Alle beteiligten Worker einschließlich alter/verzögerter Prozesse müssen die Sperreinträge beachten; gemischte Protokollgenerationen sind ohne gesonderten Nachweis nicht zugelassen. App- und Systemdaten müssen bei Backup-/Downgrade-/Cleanupvorgängen gemeinsam bewertet werden. Das Löschen oder Zurücksetzen der unabhängigen Stilllegungen würde den Replay-Schutz aufheben. Es gibt weiterhin kein atomisches Compare-and-Swap gegenüber nicht kooperierenden Fremdschreibern.
+Production use requires safe authorization, trusted storage/transport, bounded unambiguous decoding, complete metadata validation, and gate-0 provenance evidence. Every worker, including older/delayed processes, must honor retirement records; mixed protocol generations need separate evidence. App/system data must be assessed together for backup, downgrade, and cleanup. Deleting/resetting independent retirement records removes replay protection. There is still no atomic compare-and-swap against noncooperating external writers.
 
-Prüfergebnisse und Grenzen: [Phase 4](../verification/phase-4.md).
+Results and limits: [Phase 4](../verification/phase-4.md).

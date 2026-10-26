@@ -1,47 +1,49 @@
-# Phase 1 – native Projektbasis
+# Phase 1 – Native project foundation
 
-Stand: 25. Oktober 2026. **Implementiert und lokal verifiziert; formaler Clean-Checkout-/CI-Nachweis noch offen.** Gate 0 ist gemäß [ADR 0002](../decisions/0002-deferred-gate-0.md) ausdrücklich zurückgestellt und blockiert diese Arbeiten nicht. Die privilegierte Integration bleibt nicht verfügbar.
+As of October 25, 2026. **Implemented and locally verified; formal clean-checkout/CI evidence still open.** [ADR 0002](../decisions/0002-deferred-gate-0.md) explicitly defers gate 0, permitting this work. Privileged integration remains unavailable.
 
-## Ergebnis
+This report records the original phase-1 result. The folder later became a Git repository; the latest environment/build limitations are in [Development](../DEVELOPMENT.md) and [phase 5](phase-5.md).
 
-- Handgeschriebenes `MacHosts.xcodeproj` mit App, eingebettetem `MacHostsApply`, XCUITest-Target, gemeinsamem Scheme und gemeinsamem Testplan.
-- Lokales Swift-Package mit `HostsCore`, `HostsServices`, `HostsSystem` und Swift-Testing-Vertragstest. Keine externen Abhängigkeiten oder Projektgeneratoren.
-- Native SwiftUI-Startansicht mit Sidebar, Systemzustand und englischem/deutschem String Catalog. Noch keine Profilverwaltung oder Systemübernahme.
-- App-UI auf MainActor, Core-/Service-/Systemmodule ohne UI-Default-Isolation, Swift-6-Sprachmodus und vollständige Concurrency-Prüfung. macOS 27.0+, ausschließlich arm64.
-- Manuelles Ad-hoc-Signing ohne Teamkonfiguration, Hardened Runtime für App und Tool, eingebettetes Tool vor abschließender Bundle-Signatur. MIT-Lizenz, Formatkonfiguration und [Entwicklungsanleitung](../ENTWICKLUNG.md).
-- Nicht verfügbarer Writer wirft immer `integrationUnavailable`; es gibt keine Dateizugriffe oder Autorisierung im Bootstrap. Das CLI beendet sich unprivilegiert mit Exit 69, bei Root laut Code mit Exit 64. Tatsächlicher Root-Start wurde nicht ausgeführt.
+## Result
 
-## Tatsächlich geprüft
+- Handwritten `MacHosts.xcodeproj` with app, embedded `MacHostsApply`, XCUITest target, shared scheme/test plan.
+- Local package with `HostsCore`, `HostsServices`, `HostsSystem`, and Swift Testing contract test. No external dependencies/project generators.
+- Native SwiftUI start view with sidebar, system state, English/German string catalog. No profile management/system apply at this original milestone.
+- MainActor UI; Core/Services/System without UI default isolation; Swift 6 language mode, complete concurrency checking; macOS 27.0+, arm64 only.
+- Manual ad-hoc signing without team configuration; Hardened Runtime for app/tool; sign embedded tool before bundle. MIT license, formatting configuration, [development guide](../DEVELOPMENT.md).
+- Unavailable writer always throws `integrationUnavailable`; bootstrap performs no file access/authorization. CLI exits 69 without privileges and, by code, 64 when root. Actual root startup was not tested.
 
-Umgebung: Apple Silicon, Xcode 27.1 (27A9275), Swift 6.4, SDK 27.0. Befehle einschließlich Cachepfaden stehen in der Entwicklungsanleitung.
+## Actual checks
 
-| Prüfung | Ergebnis / Protokoll |
+Environment: Apple Silicon, Xcode 27.1 (27A9275), Swift 6.4, SDK 27.0. Exact commands/cache paths are in the development guide.
+
+| Check | Result/log |
 | --- | --- |
-| Swift-Package-Build und Test | bestanden; 1 Swift-Testing-Test; `/tmp/machosts-phase1-swift-test.log` |
-| Xcode Debug `build-for-testing` | bestanden; App, Tool und UI-Testtarget; `/tmp/machosts-phase1-xcode-build.log` |
-| Xcode Debug `test` nach Testkonfigurationskorrektur | bestanden; 1 XCUITest, 0 Fehler; `/tmp/machosts-phase1-ui-test.log` |
-| UI-Verhalten | App gestartet, Hinweis `systemApplyUnavailable` gefunden, App beendet |
-| Xcode Release `build` | bestanden; `/tmp/machosts-phase1-release-build.log` |
-| Debug- und Release-Bundle `codesign --verify --deep --strict` | bestanden; `/tmp/machosts-phase1-debug-signature.log`, `/tmp/machosts-phase1-release-signature.log` |
-| App- und eingebettete Tool-Signaturen | arm64, `Signature=adhoc`, `TeamIdentifier=not set`, Flags `adhoc,runtime` in beiden Konfigurationen |
-| Eingebettetes Debug-CLI unprivilegiert gestartet | erwarteter Exit 69 und Meldung über nicht verfügbare Integration |
-| Release-Tool `otool -L` | ausschließlich Systembibliotheken unter `/usr/lib` und `/System/Library` |
-| Rekursive strikte Formatprüfung | bestanden; `/tmp/machosts-phase1-format.log` |
-| Projekt-/Ressourcenformate | `plutil -lint` für pbxproj, JSON-Decoding von Catalog/Testplan/Formatkonfiguration, XML-Parsing des Schemes bestanden |
+| Package build/test | Passed; 1 Swift Testing test; `/tmp/machosts-phase1-swift-test.log` |
+| Xcode Debug `build-for-testing` | Passed; app, tool, UI target; `/tmp/machosts-phase1-xcode-build.log` |
+| Xcode Debug `test` after configuration fix | Passed; 1 XCUITest, 0 failures; `/tmp/machosts-phase1-ui-test.log` |
+| UI behavior | Launched app, found `systemApplyUnavailable`, terminated app |
+| Xcode Release `build` | Passed; `/tmp/machosts-phase1-release-build.log` |
+| Debug/Release `codesign --verify --deep --strict` | Passed; `/tmp/machosts-phase1-debug-signature.log`, `/tmp/machosts-phase1-release-signature.log` |
+| App/embedded tool signatures | arm64, `Signature=adhoc`, `TeamIdentifier=not set`, flags `adhoc,runtime` in both configurations |
+| Embedded Debug CLI, unprivileged | Expected exit 69/unavailable-integration message |
+| Release tool `otool -L` | Only system libraries under `/usr/lib` and `/System/Library` |
+| Recursive strict formatting | Passed; `/tmp/machosts-phase1-format.log` |
+| Project/resource formats | `plutil -lint` on pbxproj, JSON decoding of catalog/test plan/format configuration, scheme XML parsing passed |
 
-Die Swift-Package-Prüfung bestätigt die Verfügbarkeitssperre, keine Dateitransaktion. Die UI-Prüfung bestätigt den Start und die Zustandsanzeige, keine visuelle Gesamt-Abnahme oder vollständige Lokalisierungs-/Accessibility-Prüfung. Bestehende Phase-0-Tests wurden ohne Änderungen am Experiment nicht wiederholt.
+The package test proves the availability block, not a transaction. UI evidence proves startup/status display, not full visual/localization/accessibility acceptance. Unchanged phase-0 tests were not rerun.
 
-## Behebbare Probleme aus diesem Run
+## Issues resolved during this run
 
-1. Xcodes Package-Manifestcache liegt trotz umgesetztem Modulcache im Benutzerverzeichnis. Die Coding-Sandbox blockierte ihn; der Build wurde danach mit gezielter Ausführungsfreigabe ohne Root durchgeführt. Keine Systemschutzfunktion geändert.
-2. MainActor auf dem gesamten XCTestCase kollidierte mit nichtisolierten geerbten Initialisierern. Nur die Testmethode ist nun MainActor-isoliert; das Testtarget setzt keine UI-Default-Isolation.
-3. Explizite Runtime-Signatur des XCTest-Runners verhinderte das Laden des Ad-hoc-Testbundles wegen Library Validation. Ausschließlich das UI-Testtarget verwendet daher keine Hardened Runtime und keine zusätzlichen Signingflags. App und Tool behalten die Runtime-Signatur. Danach bestand der UI-Test.
-4. Xcode deaktiviert die automatische Hardened-Runtime-Einstellung bei Ad-hoc-Signing. Explizite `--options runtime` für App/Tool und tatsächliche Signaturprüfung belegen die gewünschten Flags. Der Debug-Dylib-Modus der App ist ausgeschaltet, damit der Debug-App-Einstieg ebenfalls direkt in der eigenen Executable liegt.
+1. Xcode's package manifest cache stays in the user directory despite module-cache overrides. The coding sandbox blocked it; targeted unprivileged execution approval allowed the build. No system protections changed.
+2. MainActor isolation of the whole XCTestCase conflicted with inherited nonisolated initializers. Only the test method is now MainActor-isolated; the test target has no UI default isolation.
+3. Runtime-signing the XCTest runner blocked ad-hoc bundle loading through library validation. Only the UI test target omits Hardened Runtime/extra signing flags. App/tool retain runtime signatures. The UI test then passed.
+4. Xcode disables automatic Hardened Runtime for ad-hoc signing. Explicit `--options runtime` and actual signature checks prove intended app/tool flags. App Debug dylib mode is disabled so its entry point resides directly in its executable.
 
-Xcode meldete beim ersten Debug-Build eine nicht gestrippte bereits signierte eingebettete Binary; die App-Copy-Phase strippt nun ausdrücklich nicht. Im finalen Build verbleiben Toolchain-Hinweise zur ausgelassenen AppIntents-Metadatenextraktion ohne Framework-Abhängigkeit sowie beim Test ein Debugger-Versionshinweis. Keine Compilerwarnungen im eigenen Swift-Code im finalen Lauf. Der Starttest bestand trotzdem.
+The initial Debug build reported an unstripped already-signed embedded binary; the app copy phase now explicitly skips stripping. Final toolchain notices concern skipped AppIntents extraction without a framework dependency and a test debugger-version notice. No warnings in our Swift code; startup test passed.
 
-## Offene Nachweise und Fortsetzung
+## Outstanding evidence and continuation
 
-Im Arbeitsverzeichnis gibt es weiterhin kein Git-Repository und keine konfigurierte CI. Ein echter Clean Checkout auf einem frischen Benutzerkonto ohne Apple-Login wurde nicht ausgeführt; der vorhandene lokale Build benötigt weder Signing-Team noch Developer-Zertifikat. CI-Runner mit tatsächlich verfügbarem Xcode 27.1 sind nicht nachgewiesen. Diese Infrastrukturpunkte gehören zum noch offenen formalen Gate-1-Abschluss.
+At this historical milestone there was no Git repository or configured CI. No actual clean checkout under a fresh user without Apple login was executed. Local builds required no team/developer certificate. Xcode-27.1 CI-runner availability remained unproven. Those infrastructure items keep formal gate 1 open; later Git initialization alone does not close it.
 
-Kein Releasepaket und keine Veröffentlichung erzeugt. Keine privilegierten Aufrufe, keine Systemhosts-Datei geöffnet oder verändert. Gate 0 bleibt zurückgestellt; echter Writer, Autorisierung, VM-Integration und Produktionsfreigabe bleiben offen. Nächster fachlicher Block ist Phase 2 (Parser und Komposition); vorher den noch offenen reproduzierbaren Projektaufbau prüfen.
+No release package/publication, privileged calls, or workstation hosts access/change. Gate 0 remains deferred; real writer, authorization, VM integration, production approval remain open. The next functional block at this milestone was phase 2, with reproducible setup evidence still outstanding.

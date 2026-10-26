@@ -4,6 +4,26 @@ import Testing
 
 @testable import HostsServices
 
+@Test func diagnosticNavigationSelectsExactUnicodeLineAndRejectsChangedSource() throws {
+  let source = "# 🌍 Grüße\r\ninvalid 😀 address\r192.0.2.1\n"
+  let document = HostsDocument.parse(Data(source.utf8), context: .profile)
+  for diagnostic in document.diagnostics {
+    let location = try #require(
+      ProfileDiagnosticLocation(document: document, line: diagnostic.line))
+    let range = try #require(location.range(in: source))
+    let expected = diagnostic.line == 2 ? "invalid 😀 address" : "192.0.2.1"
+    #expect((source as NSString).substring(with: range) == expected)
+    #expect(location.range(in: "# inserted\n" + source) == nil)
+    #expect(location.range(in: source.replacingOccurrences(of: "\r\n", with: "\n")) == nil)
+  }
+  #expect(document.diagnostics.count == 2)
+  #expect(ProfileDiagnosticLocation(document: document, line: nil) == nil)
+  #expect(ProfileDiagnosticLocation(document: document, line: 0) == nil)
+  #expect(ProfileDiagnosticLocation(document: document, line: 99) == nil)
+  let unsupported = HostsDocument.parse(Data([0xff]), context: .profile)
+  #expect(ProfileDiagnosticLocation(document: unsupported, line: 1) == nil)
+}
+
 @Test func editorPresentationUsesParserAndPreservesUnicodeOffsets() {
   let source = "# 🌍 Grüße\r\n\t2001:db8::1\tExample.test alias.test # ü\r192.0.2.1 other.test\n"
   let presentation = ProfileEditorPresentation.make(source: source)
@@ -77,4 +97,32 @@ func editorLineStartsFollowExactTerminators(source: String) {
   let bom = ProfileEditorPresentation.make(source: "\u{feff}# comment\r\ninvalid\n")
   #expect(bom.lineStarts == [0, 12, 20])
   #expect(bom.spans.isEmpty)
+}
+
+@Test func systemPresentationHighlightsOnlyValidatedManagedBlockWithUTF16Offsets() throws {
+  let prefix = "# 🌍 foreign\r\n192.0.2.2 foreign.example\r\n"
+  let block = HostsSyntax.begin + "\r\n192.0.2.1 managed.example\r\n" + HostsSyntax.end + "\r\n"
+  let source = prefix + block + "# suffix\r\n"
+  let presentation = ProfileEditorPresentation.make(source: source, system: true)
+  let managed = try #require(presentation.spans.first { $0.style == .managed })
+  #expect(managed.range == NSRange(location: prefix.utf16.count, length: block.utf16.count))
+  #expect(presentation.spans.filter { $0.style == .managed }.count == 1)
+  #expect(!presentation.spans.contains { $0.style == .invalid })
+  #expect(!ProfileEditorPresentation.make(source: source).spans.contains { $0.style == .managed })
+  for malformed in [HostsSyntax.begin, HostsSyntax.end + "\n" + HostsSyntax.begin, block + block] {
+    #expect(
+      !ProfileEditorPresentation.make(source: malformed, system: true).spans.contains {
+        $0.style == .managed
+      })
+  }
+  // System display must use the 4 MiB system budget, not the 1 MiB profile budget.
+  let largePrefix = "#" + String(repeating: "a", count: HostsLimits.profileBytes) + "\n"
+  let large = ProfileEditorPresentation.make(source: largePrefix + block, system: true)
+  #expect(large.spans.first { $0.style == .managed }?.range.location == largePrefix.utf16.count)
+  // A partial parse cannot prove that no second marker exists later in the file.
+  let limited = block + String(repeating: "\n", count: HostsLimits.systemLines) + block
+  #expect(
+    !ProfileEditorPresentation.make(source: limited, system: true).spans.contains {
+      $0.style == .managed
+    })
 }

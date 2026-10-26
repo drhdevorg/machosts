@@ -1,19 +1,19 @@
 # Authorization Probe – Phase 0
 
-Unprivilegierter Machbarkeitsprototyp, **keine fertige MacHosts-App** und kein freigegebener privilegierter Schreibweg. Deployment Target macOS 27.0, Swift-6-Sprachmodus, eigene Swift-Targets ohne externe Dependencies.
+Unprivileged feasibility prototype, **not the finished MacHosts app** or an approved privileged write path. Deployment target macOS 27.0, Swift 6 language mode, our own Swift targets without external dependencies.
 
-## Enthalten
+## Included
 
-- Native SwiftUI-Oberfläche mit einem vollständigen lokalen Dateitest.
-- Kurzlebiges CLI-Tool ausschließlich mit `--demo`, ohne frei wählbaren Zielpfad. Ausführung als Root wird abgewiesen.
-- Requestmodell mit Version, UUID, erwartetem SHA-256 und einer von zwei festen Beispieloperationen. Zusatzfelder, doppelte Schlüssel (auch mit Unicode-Escapes), unbekannte Operationen, fehlerhafte Digests und Übergröße werden abgewiesen.
-- Private Wegwerfdatei, Vorherkopie, Journal, Receipt und Rekonstruktion simulierter Unterbrechungen. Fremde Änderungen werden nicht automatisch rückgängig gemacht.
-- Optionaler OS-Dialogtest mit festem AppleScript `do shell script "/usr/bin/id -u" with administrator privileges`. Er startet ausschließlich Apples `id`, schreibt keine Datei und ist ohne ausdrückliches VM-Testargument deaktiviert.
-- Swift-Packager für `.app` und ZIP mit lokaler Ad-hoc-Signatur und Hardened Runtime; keine Account-/Team-Konfiguration.
+- Native SwiftUI UI with a complete local file test.
+- Short-lived CLI accepting only `--demo`, without arbitrary destination. Root execution is rejected.
+- Request with version, UUID, expected SHA-256, and one of two fixed sample operations. Extra fields, duplicate keys (including Unicode escapes), unknown operations, invalid digests, oversize rejected.
+- Private disposable file, before-copy, journal, receipt, reconstruction of injected interruptions. Foreign changes are never automatically undone.
+- Optional OS-dialog test with fixed AppleScript `do shell script "/usr/bin/id -u" with administrator privileges`. Launches only Apple's `id`, writes no file, disabled without explicit VM-test argument.
+- Swift app/ZIP packager with local ad-hoc signing/Hardened Runtime; no account/team configuration.
 
-## Ausführen
+## Run
 
-Vom Repository-Root, normale unprivilegierte Shell:
+From repository root in a normal unprivileged shell:
 
 ```sh
 CLANG_MODULE_CACHE_PATH=/tmp/machosts-phase0-modules SWIFTPM_MODULECACHE_OVERRIDE=/tmp/machosts-phase0-modules swift test --package-path Experiments/AuthorizationProbe --scratch-path /tmp/machosts-phase0-build --cache-path /tmp/machosts-phase0-cache --disable-sandbox
@@ -22,42 +22,44 @@ Experiments/AuthorizationProbe/.build/arm64-apple-macosx/release/MacHostsProbeTo
 CLANG_MODULE_CACHE_PATH=/tmp/machosts-phase0-modules SWIFTPM_MODULECACHE_OVERRIDE=/tmp/machosts-phase0-modules Experiments/AuthorizationProbe/.build/arm64-apple-macosx/release/PackageProbe
 ```
 
-Der genaue Binärpfad lässt sich mit `swift build --build-system native -c release --package-path Experiments/AuthorizationProbe --show-bin-path` abfragen. Hier wurde der bestehende native SwiftPM-Builder als lokale Ausweichlösung verwendet: Der neue Standardbuilder scheiterte unter der Ausführungs-Sandbox beim dSYM-Schritt. Der native Builder ist selbst als deprecated markiert; dies ist kein dauerhafter Buildstandard für das Produkt. `--disable-sandbox` deaktiviert nur die zusätzliche SwiftPM-Manifest-/Plugin-Sandbox innerhalb der bestehenden Ausführungsumgebung, nicht SIP, Gatekeeper oder macOS-Sicherheitsfunktionen.
+Find the binary directory with `swift build --build-system native -c release --package-path Experiments/AuthorizationProbe --show-bin-path`. The existing native SwiftPM builder was a local workaround: the new default builder failed at dSYM inside the execution sandbox. Native builder is itself deprecated, not a permanent product build standard. `--disable-sandbox` disables only SwiftPM's extra manifest/plugin sandbox within the existing execution environment, not SIP, Gatekeeper, or macOS security features.
 
-Der Packager erzeugt `Output/MacHostsAuthorizationProbe.app` und `.zip`. Bestehende App-Artefakte werden nicht überschrieben. Bei einem erneuten Build altes Artefakt bewusst umbenennen oder entfernen. Die eingebettete Demo-Binary wird von der App nicht als Root aufgerufen.
+Packager creates `Output/MacHostsAuthorizationProbe.app` and `.zip`; existing app artifacts are not overwritten. Deliberately rename/remove the old generated artifact before repackaging. The app never invokes its embedded demo binary as root.
 
-Formatprüfung:
+Formatting:
 
 ```sh
 xcrun swift-format lint --strict --recursive Experiments/AuthorizationProbe/Sources Experiments/AuthorizationProbe/Tests Experiments/AuthorizationProbe/Package.swift
 ```
 
-## Nur im VM-Testlauf
+## VM test only
 
-App zuerst ohne Zusatzargument starten, lokalen Dateitest ausführen, danach separat in der Wegwerf-VM:
+First start without extra arguments and run the local test; then separately in the disposable VM:
 
 ```sh
 open MacHostsAuthorizationProbe.app --args --enable-vm-auth-probe
 ```
 
-Das Argument ist eine Bedienhürde, kein technischer Beweis, dass eine VM vorliegt. Der Nutzer/Tester muss die VM-Umgebung vorher bestätigen. In der Oberfläche den Systemdialog bewusst starten. Erfolg und Abbruch separat dokumentieren; keine Kennwörter protokollieren. Dieser Test belegt höchstens die Autorisierung von Apples `id`, nicht den sicheren Start eines eigenen Swift-Tools.
+The argument is an interaction barrier, not technical proof of a VM. User/tester must confirm the VM beforehand. Deliberately start the system dialog in the UI; record success/cancellation separately, never passwords. This can prove authorization of Apple's `id` at most, not safe launch of our Swift tool.
 
-## Grenzen
+## Limits
 
-Fixture, Backup, Journal und Receipt werden in begrenzten Chunks gelesen; ab mehr als 1 MiB bricht der Store nach höchstens Limit plus einem Prüfbyte ab. Auch ein geplanter Zielinhalt über 1 MiB wird vor Backup und Write abgewiesen. Tests prüfen die Grenze, unveränderte Dateien bei Abweisung und den Erhalt eines offenen Journals bei übergroßem Recovery-Backup. Dies ist keine Messung des gesamten Prozessspeichers.
+Fixture/backup/journal/receipt reads are chunk-bounded: stop above 1 MiB after at most limit plus one probe byte. Planned target content over 1 MiB fails before backup/write. Tests cover limits, unchanged rejection state, open journal preservation with oversized recovery backup. This is no total-process-memory measurement.
 
-Lesen öffnet mit `O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC` und prüft anschließend per `fstat` am geöffneten Deskriptor Dateityp, Linkzahl und Eigentümer. Ein Symlink im letzten Pfadbestandteil wird nicht verfolgt, ein FIFO blockiert nicht beim Öffnen und nicht reguläre Dateien werden vor dem Lesen abgewiesen. Der Handle wird auch bei Validierungs-/Lesefehlern geschlossen. Tests prüfen Verzeichnisse, FIFOs, verwaiste Symlinks sowie Symlink-/Hardlinkziele und verlinkte Recovery-Artefakte. Das fixiert den gelesenen Inode, garantiert aber weder unveränderliche Inhalte bei konkurrierenden In-place-Writes noch sichere Elternverzeichnisse.
+Reads use `O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC`, then `fstat` on the opened descriptor for type/link count/owner. Final-component symlinks are not followed; FIFOs do not block on open; nonregular files fail before reading. Handles close after validation/read failures. Tests cover directories, FIFOs, dangling symlinks, symlink/hardlink targets, linked recovery artifacts. This pins the read inode, not immutable content under concurrent in-place writes or trusted parents.
 
-Der Fixture-Store ist ausschließlich für unprivilegierte Tests bestimmt: keine fsync-/Stromausfallgarantie, keine sichere FD-basierte Root-Pfadbehandlung, keine ACL-/xattr-Erhaltung, keine Mehrprozesssperre, keine dauerhafte Replay-Datenbank, keine echten Prozess-Kill-Tests. Wirebytes müssen über `ProbeRequest.decode` gelesen werden: Eine begrenzte Prüfung des flachen JSON-Objekts erkennt doppelte Schlüssel vor dem typisierten Decoding. Direktes `JSONDecoder.decode(ProbeRequest.self, …)` bietet diesen Schutz nicht. Dies belegt weder eine sichere Requestübergabe noch deren Digestbindung. Die beobachteten Unterbrechungen sind Fehlerinjektionen, kein Nachweis über Crash/Powerloss. Auch die Wiederherstellung der Fixture durchläuft jetzt Backup, Journal, Ersetzen, Readback und Receipt. Das Journal unterscheidet Apply und Restore mit einem festen Enum; daraus ergeben sich ausschließlich feste interne Artefaktnamen. Restore sichert den aktuellen Stand in `restore-before.bin` und schreibt `restore-receipt.json`; `original.bin` und das ursprüngliche Apply-Receipt bleiben erhalten. Recovery rekonstruiert beide Operationen anhand ihrer jeweiligen Vorher-/Nachher-Digests. Tests decken fünf Unterbrechungspunkte, erneutes Restore nach Recovery, No-op, veraltete Vorschau, beschädigtes Restore-Backup und externe Änderungen ab. Es bleiben simulierte Unterbrechungen innerhalb derselben Sitzung; Neustart und dauerhafte Speicherung sind damit nicht bewiesen. Das interne Journalformat wurde geändert; es gibt keine Migration alter Experimentjournale und keine Wiederaufnahme alter Sitzungsverzeichnisse.
+The store is for unprivileged tests only: no fsync/power-loss guarantee, safe descriptor-based root path resolution, general ACL/xattr preservation, multiprocess lock, durable replay database, or actual process-kill tests. Decode wire bytes with `ProbeRequest.decode`; its bounded flat-object check detects duplicates before typed decoding. Direct `JSONDecoder.decode(ProbeRequest.self, …)` lacks this protection. This proves neither transport integrity nor digest binding.
 
-Beim Schreiben bleibt die Lücke zwischen `lstat` und Ersetzen offen. Auch die neue Leseprüfung liefert keinen vollständigen Schutz vor einem gleichzeitig handelnden Prozess desselben Nutzers: Elternverzeichnisse, Metadatenänderungen und konkurrierende Writes sind nicht abgesichert. Gerade deshalb lehnen die ausführbaren Demos Root ab. Keine Bestandteile dieses Stores ohne neue Prüfung in das privilegierte Produkt übernehmen.
+Restore also performs backup/journal/replacement/readback/receipt. Journal operation enum selects fixed internal artifact names. Restore saves current bytes in `restore-before.bin` and `restore-receipt.json`, preserving `original.bin`/original apply receipt. Recovery uses each operation's before/after digests. Tests cover five interruption points, retry after recovery, no-op, stale preview, corrupt restore backup, external change. Interruptions are injected in one session, not restart/durability evidence. Internal journal format changed without migration; old sessions are never reopened.
 
-Die Journal-Anwesenheitsprüfung verwendet `lstat`: Auch ein verwaister Journal-Symlink sperrt Apply und Restore; Recovery weist ihn ab, statt die Sitzung als sauber zu melden. Bei tatsächlichen Änderungen prüft Commit die festen Backup- und Receiptziele vor dem ersten Write auf regulären Dateityp, eigenen Eigentümer und genau einen Hardlink. Bereits vorhandene unsichere Artefakte werden damit vor Änderungen an Fixture oder Backup abgewiesen. Tests decken Symlinks einschließlich verwaister Ziele, Hardlinks, Verzeichnisse und FIFOs ab. Dies ist eine Vorabprüfung bestehender Einträge; spätere konkurrierende Änderungen bleiben durch die oben genannte Schreib-Lücke möglich. Ein No-op erzeugt weiterhin keine Transaktionsartefakte.
+The write check/replace gap remains. Reader validation does not fully defend against concurrent same-user processes, parent swaps, metadata changes, or writes. Executable demos therefore reject root. Reassess all store components before any privileged product reuse.
 
-Beim Anhängen an eine Datei ohne letztes LF bleibt der notwendige Trenn-LF beim späteren Blockentfernen erhalten; nur ein Vollbackup stellt die ursprünglichen Bytes exakt wieder her. Das spätere Produkt muss Trennbyte-Herkunft dauerhaft nachhalten, wenn es diesen LF beim Entfernen ebenfalls zurücknehmen soll.
+Journal presence uses `lstat`; even a dangling journal symlink blocks apply/restore and is rejected by recovery rather than treated as clean. Before the first write, commit checks existing fixed backup/receipt destinations for regular type, current owner, one hardlink. Tests cover symlinks/dangling links/hardlinks/directories/FIFOs; reject unsafe entries before fixture/backup changes. This preflight does not exclude subsequent races. No-op creates no artifacts.
 
-Der Prototyp greift nie auf die Systemhosts-Datei zu. Gate 0 bleibt offen, bis geschützter Toolstart, Requestübergabe und echte VM-Integration nachgewiesen sind. Siehe [ADR 0001](../../docs/decisions/0001-privileged-write.md) und [Phasenbericht](../../docs/verification/phase-0.md).
+Appending to a file without final LF leaves the required separator LF when the block is later removed; full backup alone restores exact original bytes in this experiment. The product must durably track separator provenance if it removes that LF too.
 
-Gespeicherte Transaktionsdaten werden vor Recovery und Restore zusätzlich auf Konsistenz geprüft: kanonische SHA-256-Digests, unterschiedliche Vorher-/Nachher-Digests und kein gespeicherter No-op. Beschädigtes JSON führt zu `recoveryRequired`. Bei ungültigem Journal bleiben alle Artefakte unverändert und weitere Transaktionen gesperrt. Diese Prüfung liefert keine Authentizitätsgarantie; die festen Journal-/Receipt-Schemata werden vor Codable auf zusätzliche, fehlende und doppelte Schlüssel einschließlich Unicode-Escapes sowie unzulässige Werttypen und Verschachtelung geprüft. Ungültige Daten lösen `recoveryRequired` vor weiteren Writes aus; Tests belegen unveränderte Artefakte bei Abweisung sowie gültige escaped Schlüssel und jede Abschneidestelle. Die aktuelle Debug-Suite umfasst 36 Testfunktionen; vorhandene Output-Artefakte stammen weiterhin aus dem früheren Paketierungslauf.
+Stored transactions also require canonical SHA-256 digests, distinct before/after digests, and no saved no-op. Invalid JSON becomes `recoveryRequired`; invalid journal preserves all artifacts and blocks transactions. This is not authenticity. Fixed schemas are checked before Codable for extra/missing/duplicate decoded keys including escapes, wrong value types, and nesting. Invalid data stops writes; tests cover unchanged rejection, valid escaped keys, every truncation boundary. Latest Debug suite: **36 functions**. Existing Output artifacts remain from the earlier packaging run.
 
-Leser und Schreibvorabprüfung weisen reguläre Dateien mit POSIX-Gruppen- oder Fremdschreibrechten (`mode & 0022 != 0`) als `unsafeFile` ab. Dies gilt für Fixture und Transaktionsartefakte; vorhandene unsichere Dateien werden nicht durch chmod repariert. Tests prüfen unveränderte Bytes und Artefaktnamen bei Apply-/Restore-Abweisung sowie den Erhalt offener Journale bei Recovery. Modi 0400, 0600 und 0644 bleiben lesbar. Diese Prüfung untersucht keine ACLs und verhindert keine späteren Rechteänderungen durch konkurrierende Prozesse. Die privaten Elternverzeichnisse bleiben eine Voraussetzung des Experiments.
+Reads/write preflight reject regular files with POSIX group/other write (`mode & 0022 != 0`) as `unsafeFile`, for fixture and artifacts. Existing unsafe entries are not repaired with chmod. Tests check unchanged bytes/names on apply/restore rejection and retained recovery journals. Modes 0400/0600/0644 remain readable. ACLs/concurrent mode changes are not covered; private parents remain an experiment prerequisite.
+
+The prototype never accesses system hosts. Gate 0 remains open until protected tool launch, request transport, and actual VM integration are proven. See [ADR 0001](../../docs/decisions/0001-privileged-write.md) and [phase report](../../docs/verification/phase-0.md).

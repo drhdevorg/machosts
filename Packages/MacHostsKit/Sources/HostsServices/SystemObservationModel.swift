@@ -5,6 +5,9 @@ import Observation
 /// UI state for read-only observation. Only the coordinator may reconcile a pending apply.
 @MainActor @Observable
 public final class SystemObservationModel {
+  /// Invalidates frozen previews even if a restart or transient read failure returns equal bytes.
+  public private(set) var previewRevision: UInt64 = 0
+  public private(set) var contents: SystemFileContents?
   public private(set) var observation: SystemFileObservation?
   public private(set) var isMonitoring = false
   public private(set) var workspaceUnavailable = true
@@ -50,8 +53,10 @@ public final class SystemObservationModel {
   /// Keep this task alive for the observation lifetime. A replacement run invalidates all
   /// older continuations; cancellation releases Dispatch watches through stream termination.
   public func run() async {
+    previewRevision &+= 1
     generation &+= 1
     let token = generation
+    contents = nil
     observation = nil
     isMonitoring = false
     do {
@@ -61,6 +66,10 @@ public final class SystemObservationModel {
       isMonitoring = true
       for await value in stream {
         guard token == generation, !Task.isCancelled else { break }
+        let currentContents = await monitor.contents(matching: value)
+        guard token == generation, !Task.isCancelled else { break }
+        if observation != value { previewRevision &+= 1 }
+        contents = currentContents
         observation = value
       }
     } catch let failure as SystemFileReadFailure {
@@ -69,7 +78,9 @@ public final class SystemObservationModel {
       if token == generation, !Task.isCancelled { observation = .unreadable(.unavailable) }
     }
     if token == generation {
+      previewRevision &+= 1
       isMonitoring = false
+      contents = nil
       // A past successful read is not a live confirmation after observation has stopped.
       if Task.isCancelled { observation = nil }
     }

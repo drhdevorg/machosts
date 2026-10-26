@@ -1344,6 +1344,1606 @@
           }
         }
       }
+    },
+    "System file contents": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file contents"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhalt der Systemdatei"
+          }
+        }
+      }
+    },
+    "Read-only. The blue background marks the MacHosts managed block.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read-only. The blue background marks the MacHosts managed block."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schreibgeschützt. Der blaue Hintergrund markiert den von MacHosts verwalteten Block."
+          }
+        }
+      }
+    },
+    "The file encoding is unsupported. Contents cannot be displayed without conversion.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file encoding is unsupported. Contents cannot be displayed without conversion."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Dateikodierung wird nicht unterstützt. Der Inhalt kann ohne Konvertierung nicht angezeigt werden."
+          }
+        }
+      }
+    },
+    "The system file has parser diagnostics. Applying changes may be blocked.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The system file has parser diagnostics. Applying changes may be blocked."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei enthält Parserdiagnosen. Das Anwenden von Änderungen ist möglicherweise gesperrt."
+          }
+        }
+      }
+    },
+    "The MacHosts block markers are missing, repeated or out of order.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The MacHosts block markers are missing, repeated or out of order."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die MacHosts-Blockmarkierungen fehlen, sind mehrfach vorhanden oder stehen in falscher Reihenfolge."
+          }
+        }
+      }
+    },
+    "Only the first 20 diagnostics are shown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 20 diagnostics are shown."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es werden nur die ersten 20 Diagnosen angezeigt."
+          }
+        }
+      }
+    },
+    "Preview changes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview changes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Änderungen prüfen"
+          }
+        }
+      }
+    },
+    "These changes affect the entire Mac and remain active after quitting.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These changes affect the entire Mac and remain active after quitting."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Änderungen gelten für den gesamten Mac und bleiben nach dem Beenden aktiv."
+          }
+        }
+      }
+    },
+    "The preview includes all enabled drafts, including changes in other profiles.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The preview includes all enabled drafts, including changes in other profiles."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Vorschau umfasst alle aktivierten Entwürfe, einschließlich Änderungen in anderen Profilen."
+          }
+        }
+      }
+    },
+    "Preparing preview…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing preview…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschau wird erstellt …"
+          }
+        }
+      }
+    },
+    "This preview is out of date. Prepare it again before reviewing changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This preview is out of date. Prepare it again before reviewing changes."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Vorschau ist veraltet. Erstelle sie erneut, bevor du die Änderungen prüfst."
+          }
+        }
+      }
+    },
+    "Enabled profiles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enabled profiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivierte Profile"
+          }
+        }
+      }
+    },
+    "No profiles enabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No profiles enabled."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Profile aktiviert."
+          }
+        }
+      }
+    },
+    "No system file changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No system file changes."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Änderungen an der Systemdatei."
+          }
+        }
+      }
+    },
+    "The MacHosts managed block will be removed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The MacHosts managed block will be removed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der von MacHosts verwaltete Block wird entfernt."
+          }
+        }
+      }
+    },
+    "A MacHosts managed block will be appended. A separator may be added.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A MacHosts managed block will be appended. A separator may be added."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein von MacHosts verwalteter Block wird angehängt. Gegebenenfalls wird ein Zeilenumbruch ergänzt."
+          }
+        }
+      }
+    },
+    "Added mappings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added mappings"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzugefügte Zuordnungen"
+          }
+        }
+      }
+    },
+    "Removed mappings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed mappings"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernte Zuordnungen"
+          }
+        }
+      }
+    },
+    "The complete file views also show comment and formatting changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The complete file views also show comment and formatting changes."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die vollständigen Dateiansichten zeigen auch Änderungen an Kommentaren und Formatierung."
+          }
+        }
+      }
+    },
+    "File view": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File view"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateiansicht"
+          }
+        }
+      }
+    },
+    "Current file": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current file"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelle Datei"
+          }
+        }
+      }
+    },
+    "Proposed file": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proposed file"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorgeschlagene Datei"
+          }
+        }
+      }
+    },
+    "Prepare preview again": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare preview again"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschau erneut erstellen"
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine"
+          }
+        }
+      }
+    },
+    "System file": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System file"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systemdatei"
+          }
+        }
+      }
+    },
+    "Only the first 100 mappings are listed. Review the complete file views.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 100 mappings are listed. Review the complete file views."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur die ersten 100 Zuordnungen werden aufgelistet. Prüfe die vollständigen Dateiansichten."
+          }
+        }
+      }
+    },
+    "A readable system file and writable workspace are required. Check the system file status.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A readable system file and writable workspace are required. Check the system file status."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine lesbare Systemdatei und ein beschreibbarer Arbeitsbereich sind erforderlich. Prüfe den Status der Systemdatei."
+          }
+        }
+      }
+    },
+    "Save all drafts successfully before preparing a preview.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save all drafts successfully before preparing a preview."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichere alle Entwürfe erfolgreich, bevor du eine Vorschau erstellst."
+          }
+        }
+      }
+    },
+    "The managed block is unrecognized or changed externally. Review system file status before continuing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The managed block is unrecognized or changed externally. Review system file status before continuing."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der verwaltete Block ist unbekannt oder wurde extern geändert. Prüfe den Status der Systemdatei, bevor du fortfährst."
+          }
+        }
+      }
+    },
+    "Conflicting addresses block these changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conflicting addresses block these changes."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widersprüchliche Adressen blockieren diese Änderungen."
+          }
+        }
+      }
+    },
+    "Conflicting mappings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conflicting mappings"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widersprüchliche Zuordnungen"
+          }
+        }
+      }
+    },
+    "Only the first 100 conflicts are shown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 100 conflicts are shown."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur die ersten 100 Konflikte werden angezeigt."
+          }
+        }
+      }
+    },
+    "Correct parser diagnostics before continuing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correct parser diagnostics before continuing."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behebe die gemeldeten Parser-Probleme, bevor du fortfährst."
+          }
+        }
+      }
+    },
+    "Only the first 100 diagnostics are shown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 100 diagnostics are shown."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur die ersten 100 Meldungen werden angezeigt."
+          }
+        }
+      }
+    },
+    "The planned result exceeds a limit or cannot be safely composed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The planned result exceeds a limit or cannot be safely composed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das geplante Ergebnis überschreitet eine Grenze oder kann nicht sicher zusammengestellt werden."
+          }
+        }
+      }
+    },
+    "Only the first 20 source locations are shown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 20 source locations are shown."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur die ersten 20 Quellstellen werden angezeigt."
+          }
+        }
+      }
+    },
+    "Review previous workspace": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review previous workspace"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorherigen Arbeitsbereich prüfen"
+          }
+        }
+      }
+    },
+    "Restoring replaces local drafts with this previous saved workspace. The damaged file is preserved in the workspace folder.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring replaces local drafts with this previous saved workspace. The damaged file is preserved in the workspace folder."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Wiederherstellen werden lokale Entwürfe durch diesen zuvor gespeicherten Arbeitsbereich ersetzt. Die beschädigte Datei bleibt im Arbeitsbereichsordner erhalten."
+          }
+        }
+      }
+    },
+    "This does not change the system file or resolve an interrupted apply. Previously saved apply records are retained and must be checked against current system state.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This does not change the system file or resolve an interrupted apply. Previously saved apply records are retained and must be checked against current system state."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dies ändert weder die Systemdatei noch klärt es eine unterbrochene Anwendung. Gespeicherte Anwendungsnachweise bleiben erhalten und müssen mit dem aktuellen Systemzustand abgeglichen werden."
+          }
+        }
+      }
+    },
+    "Saved generation: %llu": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved generation: %llu"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherte Generation: %llu"
+          }
+        }
+      }
+    },
+    "Select a profile to inspect its saved text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a profile to inspect its saved text."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle ein Profil, um seinen gespeicherten Text zu prüfen."
+          }
+        }
+      }
+    },
+    "Folders: %lld, trashed profiles: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders: %lld, trashed profiles: %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner: %lld, Profile im Papierkorb: %lld"
+          }
+        }
+      }
+    },
+    "The previous workspace contains an interrupted apply. System recovery will still be required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous workspace contains an interrupted apply. System recovery will still be required."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der vorherige Arbeitsbereich enthält eine unterbrochene Anwendung. Die Systemwiederherstellung bleibt erforderlich."
+          }
+        }
+      }
+    },
+    "The previous workspace could not be restored. Data has been preserved. The file may have changed; close and reopen the app before trying again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous workspace could not be restored. Data has been preserved. The file may have changed; close and reopen the app before trying again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der vorherige Arbeitsbereich konnte nicht wiederhergestellt werden. Die Daten bleiben erhalten. Die Datei hat sich möglicherweise geändert; schließe und öffne die App vor einem erneuten Versuch."
+          }
+        }
+      }
+    },
+    "Restore previous workspace": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore previous workspace"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorherigen Arbeitsbereich wiederherstellen"
+          }
+        }
+      }
+    },
+    "The saved workspace is damaged or missing. A valid previous save can be reviewed when available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved workspace is damaged or missing. A valid previous save can be reviewed when available."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der gespeicherte Arbeitsbereich ist beschädigt oder fehlt. Ein gültiger vorheriger Stand kann geprüft werden, sofern vorhanden."
+          }
+        }
+      }
+    },
+    "This workspace was saved in an unsupported format. Open it with a compatible version of MacHosts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This workspace was saved in an unsupported format. Open it with a compatible version of MacHosts."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Arbeitsbereich wurde in einem nicht unterstützten Format gespeichert. Öffne ihn mit einer kompatiblen Version von MacHosts."
+          }
+        }
+      }
+    },
+    "The workspace file cannot be safely read. Check its access and file type before reopening the app.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workspace file cannot be safely read. Check its access and file type before reopening the app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Arbeitsbereichsdatei kann nicht sicher gelesen werden. Prüfe Zugriffsrechte und Dateityp, bevor du die App erneut öffnest."
+          }
+        }
+      }
+    },
+    "A workspace save was interrupted. Close and reopen the app to check the saved data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A workspace save was interrupted. Close and reopen the app to check the saved data."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Speichern des Arbeitsbereichs wurde unterbrochen. Schließe und öffne die App, um die gespeicherten Daten zu prüfen."
+          }
+        }
+      }
+    },
+    "The workspace changed outside this app. Preserve any unsaved text before closing and reopening the app.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workspace changed outside this app. Preserve any unsaved text before closing and reopening the app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Arbeitsbereich wurde außerhalb dieser App geändert. Sichere ungespeicherten Text, bevor du die App schließt und erneut öffnest."
+          }
+        }
+      }
+    },
+    "The workspace format could not be migrated. Its original data has been preserved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workspace format could not be migrated. Its original data has been preserved."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Arbeitsbereichsformat konnte nicht migriert werden. Die ursprünglichen Daten bleiben erhalten."
+          }
+        }
+      }
+    },
+    "The workspace is unavailable for editing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workspace is unavailable for editing."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Arbeitsbereich kann nicht bearbeitet werden."
+          }
+        }
+      }
+    },
+    "Find": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen"
+          }
+        }
+      }
+    },
+    "Find in profile…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find in profile…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Profil suchen …"
+          }
+        }
+      }
+    },
+    "Replace in profile…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace in profile…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Profil ersetzen …"
+          }
+        }
+      }
+    },
+    "New window": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New window"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Fenster"
+          }
+        }
+      }
+    },
+    "Review deleted profiles before restoring. Restored profiles are inactive; the system file is unchanged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review deleted profiles before restoring. Restored profiles are inactive; the system file is unchanged."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelöschte Profile vor dem Wiederherstellen prüfen. Wiederhergestellte Profile sind inaktiv; die Systemdatei bleibt unverändert."
+          }
+        }
+      }
+    },
+    "Search deleted profile names": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search deleted profile names"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelöschte Profilnamen suchen"
+          }
+        }
+      }
+    },
+    "Trash is empty.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trash is empty."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Papierkorb ist leer."
+          }
+        }
+      }
+    },
+    "No matching deleted profiles.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching deleted profiles."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine passenden gelöschten Profile."
+          }
+        }
+      }
+    },
+    "Deleted": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelöscht"
+          }
+        }
+      }
+    },
+    "Local profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokales Profil"
+          }
+        }
+      }
+    },
+    "Find in deleted profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find in deleted profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im gelöschten Profil suchen"
+          }
+        }
+      }
+    },
+    "Select a deleted profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a deleted profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein gelöschtes Profil auswählen"
+          }
+        }
+      }
+    },
+    "Filter entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter entries"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einträge filtern"
+          }
+        }
+      }
+    },
+    "Entry state": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entry state"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eintragsstatus"
+          }
+        }
+      }
+    },
+    "All entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All entries"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Einträge"
+          }
+        }
+      }
+    },
+    "Enabled entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enabled entries"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivierte Einträge"
+          }
+        }
+      }
+    },
+    "Disabled entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disabled entries"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deaktivierte Einträge"
+          }
+        }
+      }
+    },
+    "Matching entries: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matching entries: %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passende Einträge: %lld"
+          }
+        }
+      }
+    },
+    "Each switch affects the entire line, including all hostnames. Bulk actions affect every matching entry.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each switch affects the entire line, including all hostnames. Bulk actions affect every matching entry."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder Schalter betrifft die ganze Zeile einschließlich aller Hostnamen. Sammelaktionen betreffen alle passenden Einträge."
+          }
+        }
+      }
+    },
+    "Enable matching entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable matching entries"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passende Einträge aktivieren"
+          }
+        }
+      }
+    },
+    "Disable matching entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disable matching entries"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passende Einträge deaktivieren"
+          }
+        }
+      }
+    },
+    "Entry listing is incomplete. Fix the profile limit before using bulk actions.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entry listing is incomplete. Fix the profile limit before using bulk actions."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Eintragsliste ist unvollständig. Behebe die Profilbegrenzung vor Sammelaktionen."
+          }
+        }
+      }
+    },
+    "No matching entries.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching entries."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine passenden Einträge."
+          }
+        }
+      }
+    },
+    "Only the first 200 entries are shown. Bulk actions include all matches.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 200 entries are shown. Bulk actions include all matches."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur die ersten 200 Einträge werden angezeigt. Sammelaktionen umfassen alle Treffer."
+          }
+        }
+      }
+    },
+    "Profile actions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile actions"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profilaktionen"
+          }
+        }
+      }
+    },
+    "Show source line in profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show source line in profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quellzeile im Profil anzeigen"
+          }
+        }
+      }
+    },
+    "Import / Export…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import / Export…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importieren / Exportieren …"
+          }
+        }
+      }
+    },
+    "Import creates a new inactive local profile. System settings stay unchanged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import creates a new inactive local profile. System settings stay unchanged."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Import wird ein neues inaktives lokales Profil erstellt. Die Systemeinstellungen bleiben unverändert."
+          }
+        }
+      }
+    },
+    "Choose hosts text file…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose hosts text file…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hosts-Textdatei auswählen …"
+          }
+        }
+      }
+    },
+    "Review the complete source before importing. Invalid lines remain editable diagnostics.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review the complete source before importing. Invalid lines remain editable diagnostics."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfe vor dem Import den vollständigen Quelltext. Ungültige Zeilen bleiben bearbeitbar und werden als Diagnose angezeigt."
+          }
+        }
+      }
+    },
+    "The source contains diagnostics. Review it before enabling the imported profile.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The source contains diagnostics. Review it before enabling the imported profile."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Quelltext enthält Diagnosemeldungen. Prüfe ihn, bevor du das importierte Profil aktivierst."
+          }
+        }
+      }
+    },
+    "Import inactive profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import inactive profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inaktives Profil importieren"
+          }
+        }
+      }
+    },
+    "Import could not be added. Check the profile name and workspace limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import could not be added. Check the profile name and workspace limits."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Import konnte nicht hinzugefügt werden. Prüfe den Profilnamen und die Grenzen des Arbeitsbereichs."
+          }
+        }
+      }
+    },
+    "Export uses the draft captured when this window opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export uses the draft captured when this window opened."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportiert wird der Entwurf vom Zeitpunkt, zu dem dieses Fenster geöffnet wurde."
+          }
+        }
+      }
+    },
+    "Export content": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export content"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportinhalt"
+          }
+        }
+      }
+    },
+    "Original source (including disabled and invalid lines)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original source (including disabled and invalid lines)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originalquelltext (einschließlich deaktivierter und ungültiger Zeilen)"
+          }
+        }
+      }
+    },
+    "Enabled entries only (requires valid source)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enabled entries only (requires valid source)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur aktivierte Einträge (erfordert gültigen Quelltext)"
+          }
+        }
+      }
+    },
+    "Choose a new filename. Existing files are never overwritten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a new filename. Existing files are never overwritten."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle einen neuen Dateinamen. Vorhandene Dateien werden niemals überschrieben."
+          }
+        }
+      }
+    },
+    "Export hosts text…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export hosts text…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hosts-Text exportieren …"
+          }
+        }
+      }
+    },
+    "Select a profile to export its draft.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a profile to export its draft."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle ein Profil aus, um seinen Entwurf zu exportieren."
+          }
+        }
+      }
+    },
+    "Export saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export saved."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export gespeichert."
+          }
+        }
+      }
+    },
+    "The selected file could not be read.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected file could not be read."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ausgewählte Datei konnte nicht gelesen werden."
+          }
+        }
+      }
+    },
+    "Hosts text must be at most 1 MiB. Nothing was truncated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hosts text must be at most 1 MiB. Nothing was truncated."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hosts-Text darf höchstens 1 MiB groß sein. Es wurde nichts gekürzt."
+          }
+        }
+      }
+    },
+    "Choose UTF-8 text without a byte-order mark.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose UTF-8 text without a byte-order mark."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle UTF-8-Text ohne Byte-Reihenfolgemarkierung."
+          }
+        }
+      }
+    },
+    "Hosts text exceeds the 50,000-line limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hosts text exceeds the 50,000-line limit."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Hosts-Text überschreitet die Grenze von 50.000 Zeilen."
+          }
+        }
+      }
+    },
+    "Fix source diagnostics or export the original source.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix source diagnostics or export the original source."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behebe die Diagnosemeldungen oder exportiere den Originalquelltext."
+          }
+        }
+      }
+    },
+    "That filename already exists. Choose a new filename.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That filename already exists. Choose a new filename."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Dateiname ist bereits vorhanden. Wähle einen neuen Dateinamen."
+          }
+        }
+      }
+    },
+    "Export failed. A partial new file may remain; choose a new filename to retry.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export failed. A partial new file may remain; choose a new filename to retry."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Export ist fehlgeschlagen. Eine unvollständige neue Datei kann zurückbleiben. Wähle für einen erneuten Versuch einen neuen Dateinamen."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
