@@ -28,31 +28,47 @@ public struct IPAddress: Hashable, Codable, Sendable {
           || $0 == 58
       })
     else { return nil }
-    if literal.contains(":"), literal.contains(".") {
+    if literal.utf8.contains(58), literal.utf8.contains(46) {
       guard let suffix = literal.split(separator: ":").last,
         IPAddress(String(suffix))?.family == .ipv4
       else { return nil }
     }
     var v4 = in_addr()
     var v6 = in6_addr()
-    var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+    let family: Family
     if inet_pton(AF_INET, literal, &v4) == 1 {
-      guard inet_ntop(AF_INET, &v4, &buffer, socklen_t(buffer.count)) != nil else { return nil }
       // Darwin accepts ambiguous leading-zero forms; hosts input uses strict decimal octets.
-      guard
-        literal.split(separator: ".", omittingEmptySubsequences: false).allSatisfy({
-          $0.count == 1 || $0.first != "0"
-        })
-      else { return nil }
+      var octetLength = 0
+      var octetStartsWithZero = false
+      for byte in literal.utf8 {
+        if byte == 46 {
+          octetLength = 0
+          continue
+        }
+        if octetLength == 0 {
+          octetStartsWithZero = byte == 48
+        } else if octetStartsWithZero {
+          return nil
+        }
+        octetLength += 1
+      }
       family = .ipv4
     } else if inet_pton(AF_INET6, literal, &v6) == 1 {
-      guard inet_ntop(AF_INET6, &v6, &buffer, socklen_t(buffer.count)) != nil else { return nil }
       family = .ipv6
     } else {
       return nil
     }
-    canonical = String(
-      decoding: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+    let text = withUnsafeTemporaryAllocation(of: CChar.self, capacity: Int(INET6_ADDRSTRLEN)) {
+      buffer -> String? in
+      let written =
+        family == .ipv4
+        ? inet_ntop(AF_INET, &v4, buffer.baseAddress, socklen_t(buffer.count))
+        : inet_ntop(AF_INET6, &v6, buffer.baseAddress, socklen_t(buffer.count))
+      return written.map { String(cString: $0) }
+    }
+    guard let text else { return nil }
+    self.family = family
+    canonical = text
   }
 
   public init(from decoder: any Decoder) throws {
@@ -174,23 +190,40 @@ public struct HostsDocument: Equatable, Sendable {
   private static func parseLine(_ text: String, context: Context) -> (
     HostsLine.Kind, HostsDiagnostic.Code?
   ) {
-    if text.unicodeScalars.contains(where: {
-      ($0.value < 32 && $0.value != 9) || (127...159).contains($0.value)
-    }) {
-      return (.invalid, .controlCharacter)
+    var text = text
+    let rejected = text.withUTF8 { bytes -> HostsDiagnostic.Code? in
+      // Valid UTF-8: C0 controls except tab, DEL, and C1 controls (encoded C2 80...9F).
+      var previous: UInt8 = 0
+      for byte in bytes {
+        if (byte < 32 && byte != 9) || byte == 127
+          || (previous == 0xc2 && (0x80...0x9f).contains(byte))
+        {
+          return .controlCharacter
+        }
+        previous = byte
+      }
+      // Also reject embedded markers, so comments cannot inject a future delimiter. Matching
+      // bytes rather than characters also rejects a marker followed by a combining mark.
+      if contains(bytes, Self.beginMarkerPrefix) || contains(bytes, Self.endMarkerPrefix) {
+        return .reservedMarker
+      }
+      return nil
     }
-    // Also reject embedded markers, so comments cannot inject a future delimiter.
-    if text.contains("# >>> MacHosts managed block")
-      || text.contains("# <<< MacHosts managed block")
-    {
-      return (.invalid, .reservedMarker)
-    }
+    if let rejected { return (.invalid, rejected) }
     var content = text
     var enabled = true
     if context == .profile && content.hasPrefix(HostsSyntax.disabled) {
       enabled = false
       content.removeFirst(HostsSyntax.disabled.count)
     }
+    return parseASCIIFields(content, enabled: enabled)
+      ?? parseCharacterFields(content, enabled: enabled)
+  }
+
+  /// The general Character-based field parser; the reference for `parseASCIIFields`.
+  static func parseCharacterFields(_ content: String, enabled: Bool) -> (
+    HostsLine.Kind, HostsDiagnostic.Code?
+  ) {
     let trimmed = content.trimmingCharacters(in: .whitespaces)
     if trimmed.isEmpty { return enabled ? (.blank, nil) : (.invalid, .missingHostname) }
     if trimmed.hasPrefix("#") { return enabled ? (.comment, nil) : (.invalid, .invalidAddress) }
@@ -215,18 +248,91 @@ public struct HostsDocument: Equatable, Sendable {
     )
   }
 
-  public static func normalizeHostname(_ value: String) -> String? {
-    guard value.utf8.allSatisfy({ $0 < 128 }) else { return nil }
-    let name = value.hasSuffix(".") ? String(value.dropLast()) : value
-    guard !name.isEmpty, name.utf8.count <= 253 else { return nil }
-    let labels = name.split(separator: ".", omittingEmptySubsequences: false)
-    for label in labels {
-      guard !label.isEmpty, label.utf8.count <= 63, label.first != "-", label.last != "-",
-        label.utf8.allSatisfy({
-          (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 45
-        })
-      else { return nil }
-    }
-    return name.lowercased()
+  private static let beginMarkerPrefix = Array("# >>> MacHosts managed block".utf8)
+  private static let endMarkerPrefix = Array("# <<< MacHosts managed block".utf8)
+
+  private static func contains(_ haystack: UnsafeBufferPointer<UInt8>, _ needle: [UInt8]) -> Bool {
+    guard let base = haystack.baseAddress, haystack.count >= needle.count else { return false }
+    return needle.withUnsafeBytes { memmem(base, haystack.count, $0.baseAddress, $0.count) != nil }
   }
+
+  /// Byte tokenizer, used only when it is exactly equivalent to the Character-based path:
+  /// everything before the first `#` is ASCII and the byte after it is ASCII, so `#`,
+  /// space and tab are whole grapheme clusters. Other lines return nil and use that path.
+  static func parseASCIIFields(_ content: String, enabled: Bool) -> (
+    HostsLine.Kind, HostsDiagnostic.Code?
+  )? {
+    var content = content
+    return content.withUTF8 { bytes -> (HostsLine.Kind, HostsDiagnostic.Code?)? in
+      let hash = bytes.firstIndex(of: 35) ?? bytes.count
+      guard !bytes[..<hash].contains(where: { $0 >= 128 }),
+        hash + 1 >= bytes.count || bytes[hash + 1] < 128
+      else { return nil }
+      var tokens: [String] = []
+      var index = 0
+      while index < hash {
+        while index < hash && (bytes[index] == 32 || bytes[index] == 9) { index += 1 }
+        let start = index
+        while index < hash && bytes[index] != 32 && bytes[index] != 9 { index += 1 }
+        if start < index {
+          tokens.append(
+            String(decoding: UnsafeBufferPointer(rebasing: bytes[start..<index]), as: UTF8.self))
+        }
+      }
+      guard let first = tokens.first else {
+        if hash == bytes.count { return enabled ? (.blank, nil) : (.invalid, .missingHostname) }
+        return enabled ? (.comment, nil) : (.invalid, .invalidAddress)
+      }
+      guard let address = IPAddress(first) else { return (.invalid, .invalidAddress) }
+      guard tokens.count > 1 else { return (.invalid, .missingHostname) }
+      var hostnames: [String] = []
+      hostnames.reserveCapacity(tokens.count - 1)
+      for token in tokens.dropFirst() {
+        guard let hostname = normalizeHostname(token) else { return (.invalid, .invalidHostname) }
+        hostnames.append(hostname)
+      }
+      let comment =
+        hash < bytes.count
+        ? String(decoding: UnsafeBufferPointer(rebasing: bytes[(hash + 1)...]), as: UTF8.self)
+        : nil
+      return (
+        .entry(.init(address: address, hostnames: hostnames, comment: comment, isEnabled: enabled)),
+        nil
+      )
+    }
+  }
+
+  public static func normalizeHostname(_ value: String) -> String? {
+    var value = value
+    return value.withUTF8 { all -> String? in
+      guard !all.contains(where: { $0 >= 128 }) else { return nil }
+      // One trailing root dot is accepted; every label must be a non-empty LDH label.
+      let count = all.last == 46 ? all.count - 1 : all.count
+      guard count > 0, count <= 253 else { return nil }
+      var labelStart = 0
+      for index in 0...count {
+        if index == count || all[index] == 46 {
+          let length = index - labelStart
+          guard length > 0, length <= 63, all[labelStart] != 45, all[index - 1] != 45 else {
+            return nil
+          }
+          labelStart = index + 1
+        } else {
+          let byte = all[index]
+          guard
+            (65...90).contains(byte) || (97...122).contains(byte) || (48...57).contains(byte)
+              || byte == 45
+          else { return nil }
+        }
+      }
+      return String(unsafeUninitializedCapacity: count) { output in
+        for index in 0..<count {
+          let byte = all[index]
+          output[index] = (65...90).contains(byte) ? byte + 32 : byte
+        }
+        return count
+      }
+    }
+  }
+
 }

@@ -13,6 +13,9 @@ let package = Package(
     .target(name: "HostsCore"),
     .target(name: "HostsServices", dependencies: ["HostsCore"]),
     .target(name: "HostsSystem", dependencies: ["HostsCore"]),
+    .executableTarget(
+      name: "HostsBenchmark", dependencies: ["HostsServices", "HostsCore"],
+      path: "Benchmarks/HostsBenchmark"),
     .testTarget(name: "HostsServicesTests", dependencies: ["HostsServices", "HostsCore"]),
     .testTarget(name: "HostsCoreTests", dependencies: ["HostsCore"]),
     .testTarget(name: "HostsSystemTests", dependencies: ["HostsServices", "HostsSystem"]),

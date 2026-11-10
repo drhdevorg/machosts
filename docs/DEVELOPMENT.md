@@ -42,6 +42,12 @@ codesign --display --verbose=4 /tmp/machosts-product-derived/Build/Products/Debu
 codesign --display --verbose=4 /tmp/machosts-product-derived/Build/Products/Debug/MacHosts.app/Contents/MacOS/MacHostsApply
 ```
 
+The package benchmark measures parse, plan, editor presentation, search and private store/model times on a synthetic 100-profile/10,000-line dataset in an optimized build. It uses an in-memory system fixture and a private temporary directory only:
+
+```sh
+swift run --package-path Packages/MacHostsKit -c release HostsBenchmark
+```
+
 Swift Testing checks core parsing/composition, private workspace transactions, recovery, and autosave. Apply tests also cover revision changes, cancellation, duplicate calls, app-save failures, and receipt/readback recovery. The original adapter holds system bytes in memory; a further adapter connects the coordinator end to end to the actual private file transaction engine. Workspace/migration writes use private temporary directories.
 
 System tests execute private backups/journals, atomic replacement, metadata checks, and injected failures. Their adapter creates its own private temporary directory and exists only in the test target; no product destination is selectable. Process tests terminate workers at eight commit boundaries with `_exit(86)` and start independent recovery processes. They cover corrupt/external recovery data and both process locks. Nine further cases terminate during intent/result/recovery saves; four cases exercise a worker surviving app exit, completing normally or receiving SIGKILL before/after rename. Recovery stays blocked while the worker lock is held and preserves newer drafts. Seven retirement-termination cases verify durable replay tombstones. These tests need `swift test` with the documented `swiftpm-testing-helper`; other runners are unverified.
