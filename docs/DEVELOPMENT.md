@@ -66,6 +66,18 @@ process start time until two main-queue turns after the loaded workspace is publ
 it approximates the first rendered frame. It is not an interaction measurement. Delete the
 temporary workspaces afterwards.
 
+Two further switches exist only in the measurement build:
+
+- `--measurement-interaction` adds one enabled 10,000-line profile, selects it, and drives
+  the real `NSTextView`: 300 typed characters in 15 bursts, a top-to-bottom scroll in
+  120-point steps and 60 jumps. It prints `measurement interaction-typing`, `-scroll` and
+  `-jump` lines with per-event synchronous times and the longest main-thread stalls, which
+  a background timer detects by enqueueing a main-queue block every 5 ms. Edits go through
+  the normal model and autosave into the temporary workspace only.
+- `--measurement-observe-system` starts the normal read-only system file observation in
+  the private workspace mode, for idle measurements with observation running. It only
+  reads the hosts file and its parent directory; nothing is applied or written.
+
 Swift Testing checks core parsing/composition, private workspace transactions, recovery, and autosave. Apply tests also cover revision changes, cancellation, duplicate calls, app-save failures, and receipt/readback recovery. The original adapter holds system bytes in memory; a further adapter connects the coordinator end to end to the actual private file transaction engine. Workspace/migration writes use private temporary directories.
 
 System tests execute private backups/journals, atomic replacement, metadata checks, and injected failures. Their adapter creates its own private temporary directory and exists only in the test target; no product destination is selectable. Process tests terminate workers at eight commit boundaries with `_exit(86)` and start independent recovery processes. They cover corrupt/external recovery data and both process locks. Nine further cases terminate during intent/result/recovery saves; four cases exercise a worker surviving app exit, completing normally or receiving SIGKILL before/after rename. Recovery stays blocked while the worker lock is held and preserves newer drafts. Seven retirement-termination cases verify durable replay tombstones. These tests need `swift test` with the documented `swiftpm-testing-helper`; other runners are unverified.

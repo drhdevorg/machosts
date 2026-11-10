@@ -12,7 +12,7 @@ xcrun swiftc -parse-as-library -swift-version 6 -default-isolation MainActor -ta
 
 The Swift macro server requires execution outside the coding sandbox. The check needs a native macOS user session, not root privileges. Do not claim native evidence without successful execution.
 
-Checks exact CRLF/Unicode text, temporary rather than stored syntax attributes, selection, undo/redo, external text replacement with cleared undo, line count including a final empty line, scrolling at 10,000 lines, and rejection of stale styling after rapid source changes. Renders native text/ruler surfaces in Aqua/Dark Aqua under `/tmp/machosts-editor-{text,ruler}-{light,dark}.png`. Surfaces render separately because the tested SDK's parent `NSHostingView` bitmap cache omits layer-backed text.
+Checks exact CRLF/Unicode text, temporary rather than stored syntax attributes, selection, undo/redo, external text replacement with cleared undo, line count including a final empty line, scrolling at 10,000 lines with syntax colors applied to text scrolled into view, and rejection of stale styling after rapid source changes. Renders native text/ruler surfaces in Aqua/Dark Aqua under `/tmp/machosts-editor-{text,ruler}-{light,dark}.png`. Surfaces render separately because the tested SDK's parent `NSHostingView` bitmap cache omits layer-backed text.
 
 This does not replace XCUITest, VoiceOver, keyboard acceptance, find/replace/clipboard checks, or performance measurement. Fixed waits serve the local probe only, not a production response-time contract.
 

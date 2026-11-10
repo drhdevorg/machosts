@@ -221,7 +221,12 @@ final class AppModel {
   func start() {
     guard !started else { return }
     started = true
-    if !isPrivateTest { observationTask = Task { await system.run() } }
+    var observes = !isPrivateTest
+    #if MACHOSTS_MEASUREMENT
+      // Read-only observation of the real hosts file, for idle measurements with it running.
+      observes = observes || LaunchMeasurement.observesSystem
+    #endif
+    if observes { observationTask = Task { await system.run() } }
     Task { await loadWorkspace() }
   }
 
@@ -244,7 +249,12 @@ final class AppModel {
       let editor = try await ProfileWorkspaceModel.open(store: opened)
       self.editor = editor
       #if MACHOSTS_MEASUREMENT
-        if isPrivateTest { LaunchMeasurement.reportAfterNextRender(editor: editor) }
+        if isPrivateTest {
+          LaunchMeasurement.reportAfterNextRender(editor: editor)
+          if LaunchMeasurement.measuresInteraction {
+            Task { await LaunchMeasurement.measureInteraction(app: self, editor: editor) }
+          }
+        }
       #endif
       system.updateWorkspace(await opened.state())
       if !isPrivateTest {
@@ -445,7 +455,15 @@ struct SystemObservationView: View {
       return store
     }
 
-    /// Mirrors `HostsBenchmark`: 100 enabled profiles × 100 lines in ten folders.
+    static let observesSystem = ProcessInfo.processInfo.arguments.contains(
+      "--measurement-observe-system")
+    static let measuresInteraction = ProcessInfo.processInfo.arguments.contains(
+      "--measurement-interaction")
+    static let largeProfileName = "Measurement large profile"
+    static let largeProfileLines = 10_000
+
+    /// Mirrors `HostsBenchmark`: 100 enabled profiles × 100 lines in ten folders. The
+    /// interaction run adds one enabled 10,000-line profile as the editing worst case.
     private static func dataset() -> Workspace {
       let folders = (0..<10).map { ProfileFolder(name: "Folder \($0)") }
       let profiles = (0..<100).map { index in
@@ -460,7 +478,175 @@ struct SystemObservationView: View {
           name: "Profile \(index)", folderID: folders[index % folders.count].id,
           source: lines.joined(separator: "\n") + "\n", isEnabled: true)
       }
-      return Workspace(revision: 1, profiles: profiles, folders: folders)
+      var all = profiles
+      if measuresInteraction {
+        let lines = (0..<largeProfileLines).map { line in
+          "203.0.\(line / 256 % 256).\(line % 256) large-\(line).test # line \(line)"
+        }
+        all.append(
+          Profile(
+            name: largeProfileName, source: lines.joined(separator: "\n") + "\n",
+            isEnabled: true))
+      }
+      return Workspace(revision: 1, profiles: all, folders: folders)
+    }
+
+    /// Types and scrolls in the large profile's real `NSTextView` and reports per-event
+    /// synchronous handling time plus the longest main-thread stalls, measured by a
+    /// background timer that enqueues a main-queue block every 5 ms. Writes only to the
+    /// private temporary workspace through the normal edit and autosave path.
+    static func measureInteraction(app: AppModel, editor: ProfileWorkspaceModel) async {
+      try? await Task.sleep(for: .seconds(2))
+      guard let profile = editor.workspace.profiles.first(where: { $0.name == largeProfileName })
+      else { return report("interaction-error=no-large-profile") }
+      app.request(.select(profile.id))
+      let length = (profile.source as NSString).length
+      var found: NSTextView?
+      for _ in 0..<400 {
+        found =
+          NSApp.windows.lazy.compactMap { profileTextView(in: $0.contentView, length: length) }
+          .first
+        if found != nil { break }
+        try? await Task.sleep(for: .milliseconds(25))
+      }
+      guard let text = found, let window = text.window, let scroll = text.enclosingScrollView
+      else { return report("interaction-error=no-editor") }
+      window.makeFirstResponder(text)
+      try? await Task.sleep(for: .seconds(1))  // Let the initial styling pass finish.
+
+      let monitor = MainThreadStallMonitor()
+      // Typing: 15 bursts of 20 characters at 30 characters per second, each followed by a
+      // 500 ms pause so the debounced styling and autosave run between bursts.
+      let middle = (profile.source as NSString).lineRange(
+        for: NSRange(location: length / 2, length: 0))
+      text.setSelectedRange(NSRange(location: NSMaxRange(middle) - 1, length: 0))
+      text.scrollRangeToVisible(text.selectedRange())
+      _ = monitor.drain()
+      var typing: [Double] = []
+      for burst in 0..<15 {
+        for index in 0..<20 {
+          let start = DispatchTime.now().uptimeNanoseconds
+          let character =
+            index == 19 ? " " : String(UnicodeScalar(UInt8(97 + (burst + index) % 26)))
+          text.insertText(character, replacementRange: text.selectedRange())
+          window.displayIfNeeded()
+          typing.append(milliseconds(since: start))
+          try? await Task.sleep(for: .milliseconds(33))
+        }
+        try? await Task.sleep(for: .milliseconds(500))
+      }
+      let typingStalls = monitor.drain()
+      let saved = await editor.flush()
+      let typed = editor.workspace.profiles.first { $0.id == profile.id }?.source
+      report(
+        "interaction-typing " + summary(typing) + " " + stallSummary(typingStalls)
+          + " saved=\(saved) accepted=\(typed.map { ($0 as NSString).length - length } ?? -1)")
+
+      // Scrolling: the whole document top to bottom in 120-point steps at about 120 Hz,
+      // then 60 deterministic jumps to distant lines.
+      let clip = scroll.contentView
+      let height = text.frame.height - clip.bounds.height
+      var scrolling: [Double] = []
+      _ = monitor.drain()
+      var y: CGFloat = 0
+      while y <= height {
+        let start = DispatchTime.now().uptimeNanoseconds
+        clip.scroll(to: NSPoint(x: 0, y: y))
+        scroll.reflectScrolledClipView(clip)
+        window.displayIfNeeded()
+        scrolling.append(milliseconds(since: start))
+        y += 120
+        try? await Task.sleep(for: .milliseconds(8))
+      }
+      let scrollStalls = monitor.drain()
+      var jumps: [Double] = []
+      let current = text.string as NSString
+      for step in 0..<60 {
+        let location = (step * 7_919 % 997) * current.length / 997
+        let start = DispatchTime.now().uptimeNanoseconds
+        text.scrollRangeToVisible(NSRange(location: location, length: 0))
+        window.displayIfNeeded()
+        jumps.append(milliseconds(since: start))
+        try? await Task.sleep(for: .milliseconds(50))
+      }
+      let jumpStalls = monitor.drain()
+      monitor.stop()
+      report(
+        "interaction-scroll frames=\(scrolling.count) " + summary(scrolling) + " "
+          + stallSummary(scrollStalls))
+      report("interaction-jump " + summary(jumps) + " " + stallSummary(jumpStalls))
+      report("interaction-done")
+    }
+
+    private static func profileTextView(in view: NSView?, length: Int) -> NSTextView? {
+      guard let view else { return nil }
+      if let text = view as? NSTextView, text.accessibilityIdentifier() == "profileSource",
+        (text.string as NSString).length == length
+      {
+        return text
+      }
+      for child in view.subviews {
+        if let text = profileTextView(in: child, length: length) { return text }
+      }
+      return nil
+    }
+
+    nonisolated private static func milliseconds(since start: UInt64) -> Double {
+      Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
+    }
+
+    private static func summary(_ values: [Double]) -> String {
+      let sorted = values.sorted()
+      guard !sorted.isEmpty else { return "events=0" }
+      func percentile(_ p: Double) -> Double {
+        sorted[min(sorted.count - 1, Int(Double(sorted.count) * p))]
+      }
+      return String(
+        format: "events=%d p50-ms=%.2f p95-ms=%.2f max-ms=%.2f", sorted.count, percentile(0.5),
+        percentile(0.95), sorted.last!)
+    }
+
+    private static func stallSummary(_ latencies: [Double]) -> String {
+      String(
+        format: "main-max-stall-ms=%.1f stalls-over-50ms=%d stalls-over-100ms=%d",
+        latencies.max() ?? 0, latencies.filter { $0 > 50 }.count,
+        latencies.filter { $0 > 100 }.count)
+    }
+
+    private static func report(_ text: String) {
+      FileHandle.standardError.write(Data("measurement \(text) pid=\(getpid())\n".utf8))
+    }
+
+    /// Records how long main-queue blocks enqueued every 5 ms from a background queue wait.
+    nonisolated private final class MainThreadStallMonitor: @unchecked Sendable {
+      private let lock = NSLock()
+      private var latencies: [Double] = []
+      private let timer = DispatchSource.makeTimerSource(queue: .global(qos: .userInteractive))
+
+      init() {
+        timer.schedule(deadline: .now(), repeating: .milliseconds(5))
+        timer.setEventHandler { @Sendable [weak self] in
+          let posted = DispatchTime.now().uptimeNanoseconds
+          DispatchQueue.main.async { self?.record(LaunchMeasurement.milliseconds(since: posted)) }
+        }
+        timer.resume()
+      }
+
+      private func record(_ value: Double) {
+        lock.lock()
+        latencies.append(value)
+        lock.unlock()
+      }
+
+      func drain() -> [Double] {
+        lock.lock()
+        defer { lock.unlock() }
+        let values = latencies
+        latencies.removeAll(keepingCapacity: true)
+        return values
+      }
+
+      func stop() { timer.cancel() }
     }
 
     /// Prints the time from process start (kernel start time, so exec and dyld are included)

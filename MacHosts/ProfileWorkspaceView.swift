@@ -31,17 +31,20 @@ struct ProfileWorkspaceView: View {
         if query.isEmpty {
           List(selection: $selection) {
             if let editor = model.editor {
-              if editor.workspace.folders.isEmpty {
-                profileRows(editor.workspace.profiles, editor: editor)
+              let items = ProfileSidebarItem.items(
+                editor.workspace, isReadOnly: editor.isReadOnly)
+              let folders = folderRows(editor.workspace.folders)
+              if folders.isEmpty {
+                profileRows(items, folders: folders, editor: editor)
               } else {
                 Section("Unfiled profiles") {
                   profileRows(
-                    editor.workspace.profiles.filter { $0.folderID == nil }, editor: editor)
+                    items.filter { $0.folderID == nil }, folders: folders, editor: editor)
                 }
-                ForEach(folderRows(editor.workspace.folders)) { row in
+                ForEach(folders) { row in
                   Section {
                     profileRows(
-                      editor.workspace.profiles.filter { $0.folderID == row.id }, editor: editor)
+                      items.filter { $0.folderID == row.id }, folders: folders, editor: editor)
                   } header: {
                     Text(verbatim: row.path)
                   }
@@ -276,47 +279,19 @@ struct ProfileWorkspaceView: View {
       exchange: { showsExchange = true })
   }
 
-  @ViewBuilder
-  private func profileRows(_ profiles: [Profile], editor: ProfileWorkspaceModel) -> some View {
-    ForEach(profiles) { profile in
-      HStack {
-        Image(systemName: profile.isEnabled ? "checkmark.circle" : "circle")
-          .accessibilityLabel(profile.isEnabled ? Text("Desired active") : Text("Desired inactive"))
-        Text(verbatim: profile.name)
-        if profile.kind == .remote { Image(systemName: "lock") }
-      }
-      .tag(profile.id)
-      .contextMenu {
-        Group {
-          Button("Duplicate as local profile") {
-            if let id = editor.duplicate(profile.id, name: profile.name) { selection = id }
-          }
-          Button("Move up") { editor.move(profile.id, by: -1) }
-            .disabled(!editor.canMove(profile.id, by: -1))
-          Button("Move down") { editor.move(profile.id, by: 1) }
-            .disabled(!editor.canMove(profile.id, by: 1))
-          Menu("Move to folder") {
-            Button("Unfiled profiles") { editor.moveToFolder(profile.id, folderID: nil) }
-            ForEach(folderRows(editor.workspace.folders)) { row in
-              Button {
-                editor.moveToFolder(profile.id, folderID: row.id)
-              } label: {
-                Text(verbatim: row.path)
-              }
-            }
-          }
-          Divider()
-          Button("Move to trash") {
-            editor.delete(profile.id)
-            if !editor.workspace.profiles.contains(where: { $0.id == profile.id }),
-              selection == profile.id
-            {
-              selection = nil
-            }
-          }
-        }
-        .disabled(editor.isReadOnly)
-      }
+  /// Rows receive plain values instead of reading the observable workspace, so typing in
+  /// one profile does not re-evaluate every sidebar row and its context menu.
+  private func profileRows(
+    _ items: [ProfileSidebarItem], folders: [FolderRow], editor: ProfileWorkspaceModel
+  ) -> some View {
+    ForEach(items) { item in
+      ProfileSidebarRow(
+        item: item, folders: folders, editor: editor,
+        select: { selection = $0 },
+        deleted: { id in if selection == id { selection = nil } }
+      )
+      .equatable()
+      .tag(item.id)
     }
   }
 
@@ -488,13 +463,20 @@ private struct ProfileDetailView: View {
   @State private var showsEntries = false
   @State private var entryQuery = ""
   @State private var entryState = ProfileEntrySelection.State.all
+  @State private var parsed: (profileID: UUID, document: HostsDocument)?
 
-  private var parsedDocument: HostsDocument {
-    HostsDocument.parse(Data(profile.source.utf8), context: .profile)
+  /// Typing must not re-parse a large profile on the main thread for every keystroke.
+  /// The latest background parse is shown; after an edit it may trail by the debounce
+  /// interval. Source jumps and entry switches stay digest-bound, so stale results are
+  /// rejected rather than applied to newer text. Only a newly selected profile is parsed
+  /// once synchronously.
+  private var currentDocument: HostsDocument {
+    if let parsed, parsed.profileID == profile.id { return parsed.document }
+    return HostsDocument.parse(Data(profile.source.utf8), context: .profile)
   }
 
   var body: some View {
-    let document = parsedDocument
+    let document = currentDocument
     VStack(alignment: .leading, spacing: 12) {
       HStack {
         TextField("Profile name", text: $name)
@@ -555,9 +537,11 @@ private struct ProfileDetailView: View {
           VStack(alignment: .leading) {
             ForEach(Array(document.diagnostics.prefix(20).enumerated()), id: \.offset) {
               _, diagnostic in
-              let location = ProfileDiagnosticLocation(document: document, line: diagnostic.line)
               Button {
-                guard let location else { return }
+                guard
+                  let location = ProfileDiagnosticLocation(
+                    document: document, line: diagnostic.line)
+                else { return }
                 navigate(
                   ProfileEditorJump(
                     id: UUID(), profileID: profile.id, digest: location.digest,
@@ -569,7 +553,7 @@ private struct ProfileDetailView: View {
                 }
               }
               .buttonStyle(.link)
-              .disabled(location == nil)
+              .disabled(diagnostic.line == nil)
               .accessibilityIdentifier("profileDiagnosticLocation")
             }
             if document.diagnostics.count > 20 {
@@ -593,6 +577,18 @@ private struct ProfileDetailView: View {
     }
     .padding()
     .onAppear { name = profile.name }
+    .task(id: profile.source) {
+      let id = profile.id
+      let source = profile.source
+      if parsed?.profileID == id {
+        do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+      }
+      let document = await Task.detached(priority: .userInitiated) {
+        HostsDocument.parse(Data(source.utf8), context: .profile)
+      }.value
+      guard !Task.isCancelled else { return }
+      parsed = (id, document)
+    }
   }
 
   private func entryControls(_ document: HostsDocument) -> some View {
@@ -720,7 +716,85 @@ private struct SearchRequest: Equatable {
   let revision: UInt64?
 }
 
-private struct FolderRow: Identifiable {
+private struct ProfileSidebarItem: Identifiable, Equatable {
+  let id: UUID
+  let name: String
+  let isEnabled: Bool
+  let isRemote: Bool
+  let isReadOnly: Bool
+  let folderID: UUID?
+  let canMoveUp: Bool
+  let canMoveDown: Bool
+
+  /// Move availability matches `ProfileWorkspaceModel.canMove`: persisted sibling order
+  /// within the same folder, computed once for all rows.
+  static func items(_ workspace: Workspace, isReadOnly: Bool) -> [ProfileSidebarItem] {
+    var counts: [UUID?: Int] = [:]
+    for profile in workspace.profiles { counts[profile.folderID, default: 0] += 1 }
+    var positions: [UUID?: Int] = [:]
+    return workspace.profiles.map { profile in
+      let position = positions[profile.folderID, default: 0]
+      positions[profile.folderID] = position + 1
+      return ProfileSidebarItem(
+        id: profile.id, name: profile.name, isEnabled: profile.isEnabled,
+        isRemote: profile.kind == .remote, isReadOnly: isReadOnly, folderID: profile.folderID,
+        canMoveUp: !isReadOnly && position > 0,
+        canMoveDown: !isReadOnly && position + 1 < counts[profile.folderID, default: 0])
+    }
+  }
+}
+
+private struct ProfileSidebarRow: View, Equatable {
+  let item: ProfileSidebarItem
+  let folders: [FolderRow]
+  let editor: ProfileWorkspaceModel
+  let select: (UUID) -> Void
+  let deleted: (UUID) -> Void
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.item == rhs.item && lhs.folders == rhs.folders && lhs.editor === rhs.editor
+  }
+
+  var body: some View {
+    HStack {
+      Image(systemName: item.isEnabled ? "checkmark.circle" : "circle")
+        .accessibilityLabel(item.isEnabled ? Text("Desired active") : Text("Desired inactive"))
+      Text(verbatim: item.name)
+      if item.isRemote {
+        Image(systemName: "lock").accessibilityLabel(Text("Remote, read-only"))
+      }
+    }
+    .contextMenu {
+      Group {
+        Button("Duplicate as local profile") {
+          if let id = editor.duplicate(item.id, name: item.name) { select(id) }
+        }
+        Button("Move up") { editor.move(item.id, by: -1) }
+          .disabled(!item.canMoveUp)
+        Button("Move down") { editor.move(item.id, by: 1) }
+          .disabled(!item.canMoveDown)
+        Menu("Move to folder") {
+          Button("Unfiled profiles") { editor.moveToFolder(item.id, folderID: nil) }
+          ForEach(folders) { row in
+            Button {
+              editor.moveToFolder(item.id, folderID: row.id)
+            } label: {
+              Text(verbatim: row.path)
+            }
+          }
+        }
+        Divider()
+        Button("Move to trash") {
+          editor.delete(item.id)
+          if !editor.workspace.profiles.contains(where: { $0.id == item.id }) { deleted(item.id) }
+        }
+      }
+      .disabled(item.isReadOnly)
+    }
+  }
+}
+
+private struct FolderRow: Identifiable, Equatable {
   let id: UUID
   let path: String
 }

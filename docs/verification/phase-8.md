@@ -1,9 +1,10 @@
 # Phase 8 verification – package performance measurement
 
 November 10, 2026. Independent local work under ADR 0002. **Gate 8 is open.** This
-increment measures the package-level work behind the provisional Release budgets and removes
-the parser hot spots it found. It does not measure native window, menu, typing, idle-CPU or
-RSS budgets; those require launching the app and remain open.
+report covers the package benchmark and parser speedups, native launch, idle and memory
+measurements with a private measurement build, and in-process typing and scrolling
+measurements with the editor fixes they led to. Warm menu, real input latency,
+accessibility and the user guide remain open (see "Not done").
 
 ## Benchmark
 
@@ -110,15 +111,93 @@ string (`strings` count 0); the measurement binary contains it.
   window. Normal launches do not pass this flag, so it is a test-launch artifact. Because of
   it, these runs used normal window-state saving for `de.machosts.app`.
 
+## Typing and scrolling in a 10,000-line profile (measurement build)
+
+Measured November 10, 2026 on the same device with `--measurement-interaction` (see
+[Development](../DEVELOPMENT.md)): the benchmark workspace plus one enabled
+10,000-line profile (about 510 KB). The probe types 300 characters into the middle of the
+large profile's real `NSTextView` in 15 bursts of 20 at 30 characters per second, with a
+500 ms pause after each burst so debounced styling and autosave run. It then scrolls the
+whole document in 120-point steps and makes 60 jumps. "Per event" is the synchronous time
+for `insertText` or the scroll call plus `displayIfNeeded`. "Main-thread stall" is the
+longest wait of a main-queue block that a background timer enqueues every 5 ms during the
+phase, so it also includes debounced styling, parsing and autosave work.
+
+The first run did not finish: it used 39 s of CPU in 40 s and never completed typing.
+Sampling found four causes, fixed in this order:
+
+| Change | Typing per event (median) | Stalls > 50 ms |
+| --- | ---: | ---: |
+| Before: did not finish (each keystroke spent seconds comparing `Profile` values) | — | — |
+| Editor hands the model a native string, not the bridged `NSTextView.string` | 62.9 ms | 1,460 |
+| Faster native copy (`getBytes`, 0.7 ms instead of 12.7 ms) and detail parsing off the main thread | 27.3 ms | 168 |
+| Sidebar rows take plain values and are `Equatable`, so typing does not re-evaluate them | 19.1 ms | 160 |
+| Incremental workspace budget bound instead of a full JSON encode per keystroke; syntax colors only near the viewport | 14.7 ms | 0 |
+
+Final result, three consecutive runs:
+
+| Phase | Per event, median / p95 / max | Longest main-thread stall | Stalls > 50 ms |
+| --- | ---: | ---: | ---: |
+| Typing, 300 characters | 14.7–14.8 / 18.1–20.6 / 29.5–33.4 ms | 43.0–47.1 ms | 0 |
+| Scrolling, 1,331 steps | 0.14–0.15 / 0.26–0.34 / 0.52–0.84 ms | 21.4–25.1 ms | 0 |
+| Jumps, 60 | 0.78–0.91 / 0.94–1.23 / 1.05–1.28 ms | 9.7–11.9 ms | 0 |
+
+All 300 characters were accepted and saved (`saved=true accepted=300`). What remains per
+keystroke is mostly SwiftUI's own window layout pass. "No perceptible stalls" has no
+numeric threshold in the product outline; these runs had no main-thread stall over 50 ms,
+but this is a synthetic in-process probe, not human or XCUITest acceptance. Scroll times
+are the synchronous AppKit display calls, not compositor frame times.
+
+Details of the changes:
+
+- `NSTextView.string` returns a Foundation-backed String. Comparing it with a stored
+  500 KB source fell back to slow Unicode comparison in every SwiftUI and model equality
+  check. The editor coordinator now keeps a native UTF-8 copy and compares against it.
+- The profile detail view parses for diagnostics and entry switches in a detached task,
+  debounced by 150 ms, instead of in `body`. A newly selected profile is parsed once
+  synchronously. Diagnostic jumps and entry switches remain digest-bound, so a result that
+  trails the text is rejected instead of being applied to newer text. A diagnostic's
+  source location is now computed on click.
+- `ProfileWorkspaceModel` keeps a proven upper bound on the encoded workspace size for
+  pure source edits. It starts from the last exact encoding and adds six bytes per UTF-8
+  byte of each edited source (the largest JSON escape) minus its original bytes, plus
+  revision-digit slack. Every other change, and any edit whose bound exceeds the 32 MiB
+  budget, still encodes exactly. New tests check the bound against the exact encoding
+  over 400 random edits with every escape class (a mutation to a 1× factor failed with
+  247 issues), and that an edit escaping beyond the budget is still rejected.
+- Syntax colors are applied to the visible text plus one screen above and below, and to
+  further text as it scrolls into view (on the next main-queue turn, so styling never
+  forces glyph layout during AppKit tiling). The native editor probe now checks colors on
+  text scrolled into view; without the scroll observer, that check fails.
+
+Checks for this increment: full package run with 182 tests passed (30 System, 136
+Services, 16 Core); strict `swift-format lint` passed; the native editor probe passed
+all three groups; Release and Debug build-for-testing succeeded; Release is 6.2 MiB with an
+`adhoc,runtime` signature, and contains no measurement or UI-test switch strings; all 282
+catalog strings have German translations.
+
+Launch was rechecked in eight alternating launches of the previous and the new
+measurement build: median 633 ms before, 610 ms after (no regression).
+
+## Idle with read-only system observation
+
+Same build with `--measurement-observe-system` and the 100-profile dataset: 0.02 s CPU
+over 60 s starting 10 s after ready (0.03 % of one core), 148.2 MiB RSS and 63 MB physical
+footprint at the end. `lsof` showed the process holding `/private/etc` and
+`/private/etc/hosts` open read-only, and no network sockets at either end of the minute
+(`lsof -i` found none). The measurement build has no remote refresh or schedule, so this
+shows no periodic networking from observation; the shipping app's opt-in remote schedule
+is not covered.
+
 ## Not done
 
 - A prefilter that skipped per-line search was measured and reverted: Foundation's
   case-insensitive search is itself the cost (worst case 130 ms). An exact byte replacement
   would need Unicode case folding (for example "ß" and "ss"). Search runs on its own actor,
   off the main thread.
-- Warm menu ≤ 150 ms, typing and scrolling stalls, and interaction latency of the first
-  window are unmeasured: they need UI automation, which is still blocked by
-  Accessibility authorization. Idle CPU was measured without system observation; idle
-  behavior with observation running, and the absence of periodic networking, still need a
-  separate check. VoiceOver, keyboard, contrast and motion checks, the failure-matrix
-  rerun and `docs/USER-GUIDE.md` remain open.
+- Warm menu ≤ 150 ms and real input latency (keyboard events through the window server)
+  are unmeasured: they need UI automation, which is still blocked by Accessibility
+  authorization. Typing and scrolling were measured in-process only (see above). Idle
+  networking with an enabled remote schedule is not measured. VoiceOver, keyboard,
+  contrast and motion checks, the failure-matrix rerun and `docs/USER-GUIDE.md` remain
+  open.

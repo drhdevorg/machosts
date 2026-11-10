@@ -554,3 +554,54 @@ private final class EditorSaveFault: Sendable {
   #expect(saved.applied == nil && saved.pendingApply == nil)
   #expect(saved.draft.profiles.first { $0.id == copy }?.source == original.profiles[0].source)
 }
+
+@Test @MainActor func sourceEditBudgetBoundAlwaysCoversTheExactEncoding() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+  let ids = try (0..<3).map { try #require(model.create(name: "Profile \($0)")) }
+  // Characters with every JSON escape width: plain, two-byte escapes, `\u00XX`, non-ASCII.
+  let fragments = [
+    "192.0.2.1 a.example\n", "\"", "\\", "/", "\u{01}", "\u{1F}", "\t", "\r\n", "é", "😀",
+    "\u{2028}", "#",
+  ]
+  var state: UInt64 = 0x5eed
+  func next() -> Int {
+    state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+    return Int(state >> 33)
+  }
+  var bounded = 0
+  for step in 0..<400 {
+    let id = ids[next() % ids.count]
+    let length = next() % 400
+    let source = (0..<length).map { _ in fragments[next() % fragments.count] }.joined()
+    model.setSource(id, source: source)
+    #expect(model.editFailure == nil)
+    if step % 97 == 0 { model.rename(id, name: "Renamed \(step)") }
+    if let bound = model.sourceBudgetBound {
+      bounded += 1
+      #expect(try model.workspace.encoded().count <= bound)
+    }
+  }
+  #expect(bounded > 350)
+}
+
+@Test @MainActor func sourceEditsStillRespectTheEncodedWorkspaceBudget() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let large = String(repeating: "a", count: 1_000_000)
+  let profiles = (0..<32).map { Profile(name: "Large \($0)", source: large) }
+  _ = try await store.saveDraft(Workspace(revision: 1, profiles: profiles), expectedGeneration: 0)
+  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+  let before = model.workspace
+  // Within the profile byte limit, but each control character encodes as six JSON bytes.
+  model.setSource(profiles[0].id, source: String(repeating: "\u{01}", count: 1_000_000))
+  #expect(model.editFailure == .limitExceeded)
+  #expect(model.workspace == before)
+  model.setSource(profiles[1].id, source: large + "b")
+  #expect(model.editFailure == nil)
+  #expect(model.workspace.profiles[1].source == large + "b")
+  #expect(try model.workspace.encoded().count <= HostsLimits.workspaceBytes)
+}

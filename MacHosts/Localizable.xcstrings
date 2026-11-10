@@ -4496,6 +4496,22 @@
           }
         }
       }
+    },
+    "Remote, read-only": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote, read-only"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote, schreibgeschützt"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

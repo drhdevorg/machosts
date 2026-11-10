@@ -16,6 +16,29 @@ public final class ProfileWorkspaceModel {
   private var savedDraft: Workspace
   @ObservationIgnored private var debounce: Task<Void, Never>?
   @ObservationIgnored private var saving: Task<Bool, Never>?
+  @ObservationIgnored private var sourceBudget: SourceBudget?
+
+  /// A proven upper bound on the encoded size of `workspace`, so typing need not re-encode
+  /// the whole workspace for every keystroke. It starts from an exact encoding and adds,
+  /// for each profile whose source changed since, six bytes per UTF-8 byte of its current
+  /// source (the largest JSON escape, `\u00XX`) minus its original byte count, plus room
+  /// for revision digits. It is valid only for the revision it was computed for.
+  struct SourceBudget {
+    var revision: UInt64
+    let encodedBytes: Int
+    var originalSourceBytes: [UUID: Int] = [:]
+    var currentSourceBytes: [UUID: Int] = [:]
+
+    var bound: Int {
+      originalSourceBytes.reduce(encodedBytes + 20) { total, entry in
+        total + 6 * (currentSourceBytes[entry.key] ?? entry.value) - entry.value + 20
+      }
+    }
+  }
+
+  var sourceBudgetBound: Int? {
+    sourceBudget?.revision == workspace.revision ? sourceBudget?.bound : nil
+  }
 
   private init(
     store: WorkspaceStore, load: WorkspaceLoad, autosave: WorkspaceAutosave?, delay: Duration
@@ -61,6 +84,7 @@ public final class ProfileWorkspaceModel {
       persisted = await store.state()
       guard let snapshot = persisted.snapshot else { throw WorkspaceStoreFailure.notLoaded }
       workspace = snapshot.draft
+      sourceBudget = nil
       savedDraft = snapshot.draft
       autosave = try await WorkspaceAutosave.open(store: store, delay: delay)
       saveFailed = false
@@ -246,7 +270,7 @@ public final class ProfileWorkspaceModel {
   }
 
   public func setSource(_ id: UUID, source: String) {
-    update(id) {
+    update(id, sourceEdit: true) {
       guard $0.kind == .local else { throw WorkspaceFailure.readOnlyProfile }
       $0.source = source
     }
@@ -393,8 +417,10 @@ public final class ProfileWorkspaceModel {
 
   public func clearEditFailure() { editFailure = nil }
 
-  private func update(_ id: UUID, mutation: (inout Profile) throws -> Void) {
-    change { draft in
+  private func update(
+    _ id: UUID, sourceEdit: Bool = false, mutation: (inout Profile) throws -> Void
+  ) {
+    change(sourceEdit: sourceEdit ? id : nil) { draft in
       guard let index = draft.profiles.firstIndex(where: { $0.id == id }) else {
         throw WorkspaceFailure.missingProfile
       }
@@ -416,7 +442,9 @@ public final class ProfileWorkspaceModel {
   }
 
   @discardableResult
-  private func change(_ mutation: (inout Workspace) throws -> Void) -> Bool {
+  private func change(
+    sourceEdit: UUID? = nil, _ mutation: (inout Workspace) throws -> Void
+  ) -> Bool {
     guard !isReadOnly else { return false }
     do {
       var next = workspace
@@ -425,7 +453,12 @@ public final class ProfileWorkspaceModel {
       guard workspace.revision < UInt64.max else { throw WorkspaceFailure.revisionOverflow }
       next.revision = workspace.revision + 1
       // Validate the complete serialized budget before accepting text into the visible draft.
-      _ = try next.encoded()
+      if let sourceEdit, let budget = try sourceBudget(next, editing: sourceEdit) {
+        sourceBudget = budget
+      } else {
+        let encoded = try next.encoded()
+        sourceBudget = SourceBudget(revision: next.revision, encodedBytes: encoded.count)
+      }
       workspace = next
       editFailure = nil
       saveFailed = false
@@ -435,6 +468,24 @@ public final class ProfileWorkspaceModel {
       editFailure = (error as? WorkspaceFailure) ?? .limitExceeded
       return false
     }
+  }
+
+  /// Accepts a pure source edit without encoding when the bound proves the budget;
+  /// returns nil when an exact encoding is required.
+  private func sourceBudget(_ next: Workspace, editing id: UUID) throws -> SourceBudget? {
+    guard var budget = sourceBudget, budget.revision == workspace.revision,
+      let edited = next.profiles.first(where: { $0.id == id })
+    else { return nil }
+    if budget.originalSourceBytes[id] == nil {
+      // Unchanged since the exact encoding, so the current draft holds the original.
+      guard let original = workspace.profiles.first(where: { $0.id == id }) else { return nil }
+      budget.originalSourceBytes[id] = original.source.utf8.count
+    }
+    budget.currentSourceBytes[id] = edited.source.utf8.count
+    guard budget.bound <= HostsLimits.workspaceBytes else { return nil }
+    try next.validate()
+    budget.revision = next.revision
+    return budget
   }
 
   private func queueSave() {

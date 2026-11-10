@@ -56,11 +56,16 @@ struct NativeProfileEditor: NSViewRepresentable {
     text.textColor = .textColor
     text.insertionPointColor = .textColor
     text.string = source
+    context.coordinator.current = source
     text.delegate = context.coordinator
     scroll.documentView = text
     scroll.verticalRulerView = ProfileLineRuler(textView: text, scrollView: scroll)
     scroll.hasVerticalRuler = true
     scroll.rulersVisible = true
+    scroll.contentView.postsBoundsChangedNotifications = true
+    NotificationCenter.default.addObserver(
+      context.coordinator, selector: #selector(Coordinator.scrolled(_:)),
+      name: NSView.boundsDidChangeNotification, object: scroll.contentView)
     context.coordinator.schedulePresentation(for: text)
     return scroll
   }
@@ -70,9 +75,10 @@ struct NativeProfileEditor: NSViewRepresentable {
     context.coordinator.onChange = onChange
     text.isEditable = isEditable
     context.coordinator.schedulePresentation(for: text, source: source)
-    if text.string != source {
+    if context.coordinator.current != source {
       let selection = text.selectedRange()
       text.string = source
+      context.coordinator.current = source
       let count = (source as NSString).length
       let location = min(selection.location, count)
       text.setSelectedRange(
@@ -107,6 +113,8 @@ struct NativeProfileEditor: NSViewRepresentable {
 
   static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
     coordinator.styling?.cancel()
+    NotificationCenter.default.removeObserver(
+      coordinator, name: NSView.boundsDidChangeNotification, object: scroll.contentView)
     (scroll.documentView as? NSTextView)?.delegate = nil
   }
 
@@ -117,45 +125,112 @@ struct NativeProfileEditor: NSViewRepresentable {
     var styling: Task<Void, Never>?
 
     func schedulePresentation(for text: NSTextView, source: String? = nil) {
-      let source = source ?? text.string
+      let source = source ?? current
       guard requestedSource != source else { return }
       requestedSource = source
       styling?.cancel()
-      styling = Task { [weak text, styler] in
+      styling = Task { [weak self, weak text, styler, isSystem] in
         do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
         let presentation = await styler.presentation(for: source, system: isSystem)
-        guard !Task.isCancelled, let text, text.string == source else { return }
-        guard let layout = text.layoutManager else { return }
-        let whole = NSRange(location: 0, length: (source as NSString).length)
-        layout.removeTemporaryAttribute(.foregroundColor, forCharacterRange: whole)
-        layout.removeTemporaryAttribute(.underlineStyle, forCharacterRange: whole)
-        layout.removeTemporaryAttribute(.backgroundColor, forCharacterRange: whole)
-        for span in presentation.spans where span.range.length > 0 {
-          if span.style == .managed {
-            layout.addTemporaryAttribute(
-              .backgroundColor, value: NSColor.systemBlue.withAlphaComponent(0.12),
-              forCharacterRange: span.range)
-            continue
-          }
-          let color: NSColor
-          switch span.style {
-          case .address: color = .systemBlue
-          case .hostname: color = .textColor
-          case .comment, .disabled, .managed: color = .secondaryLabelColor
-          case .invalid: color = .systemRed
-          }
-          layout.addTemporaryAttribute(
-            .foregroundColor, value: color, forCharacterRange: span.range)
-          if span.style == .invalid {
-            layout.addTemporaryAttribute(
-              .underlineStyle, value: NSUnderlineStyle.single.rawValue,
-              forCharacterRange: span.range)
-          }
-        }
+        guard !Task.isCancelled, let self, let text, current == source else { return }
+        self.presentation = presentation.spans.filter { $0.style != .managed }
+        managedSpans = presentation.spans.filter { $0.style == .managed }
+        styled = IndexSet()
+        styleVisibleText(text)
         (text.enclosingScrollView?.verticalRulerView as? ProfileLineRuler)?
           .update(lineStarts: presentation.lineStarts)
       }
     }
+    private var presentation: [ProfileEditorPresentation.Span] = []
+    private var managedSpans: [ProfileEditorPresentation.Span] = []
+    private var styled = IndexSet()
+
+    /// Colors only the visible text plus one screen above and below, and the rest as it
+    /// scrolls into view. Restyling all 10,000 lines after every typing pause stalled
+    /// the main thread. Ranges styled for an older presentation are restyled when the
+    /// new one reaches them, because the styled set is reset per presentation.
+    func styleVisibleText(_ text: NSTextView) {
+      guard let layout = text.layoutManager, let container = text.textContainer else { return }
+      let visible = text.visibleRect
+      guard !visible.isEmpty else { return }
+      let area = visible.insetBy(dx: 0, dy: -visible.height).offsetBy(
+        dx: -text.textContainerOrigin.x, dy: -text.textContainerOrigin.y)
+      let glyphs = layout.glyphRange(forBoundingRect: area, in: container)
+      let characters = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+      let length = text.textStorage?.length ?? 0
+      let lower = min(characters.location, length)
+      let upper = min(NSMaxRange(characters), length)
+      guard lower < upper else { return }
+      let missing = IndexSet(integersIn: lower..<upper).subtracting(styled)
+      for range in missing.rangeView {
+        style(NSRange(location: range.lowerBound, length: range.count), in: layout)
+      }
+      styled.insert(integersIn: lower..<upper)
+    }
+
+    private func style(_ range: NSRange, in layout: NSLayoutManager) {
+      layout.removeTemporaryAttribute(.foregroundColor, forCharacterRange: range)
+      layout.removeTemporaryAttribute(.underlineStyle, forCharacterRange: range)
+      layout.removeTemporaryAttribute(.backgroundColor, forCharacterRange: range)
+      for span in managedSpans {
+        let part = NSIntersectionRange(span.range, range)
+        if part.length > 0 {
+          layout.addTemporaryAttribute(
+            .backgroundColor, value: NSColor.systemBlue.withAlphaComponent(0.12),
+            forCharacterRange: part)
+        }
+      }
+      // Line spans are in source order; start at the first one that ends after the range.
+      var lower = 0
+      var upper = presentation.count
+      while lower < upper {
+        let mid = (lower + upper) / 2
+        if NSMaxRange(presentation[mid].range) <= range.location {
+          lower = mid + 1
+        } else {
+          upper = mid
+        }
+      }
+      for span in presentation[lower...] {
+        if span.range.location >= NSMaxRange(range) { break }
+        let part = NSIntersectionRange(span.range, range)
+        guard part.length > 0 else { continue }
+        let color: NSColor
+        switch span.style {
+        case .address: color = .systemBlue
+        case .hostname: color = .textColor
+        case .comment, .disabled, .managed: color = .secondaryLabelColor
+        case .invalid: color = .systemRed
+        }
+        layout.addTemporaryAttribute(.foregroundColor, value: color, forCharacterRange: part)
+        if span.style == .invalid {
+          layout.addTemporaryAttribute(
+            .underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: part)
+        }
+      }
+    }
+
+    private var visibleStylingQueued = false
+
+    /// Bounds also change while AppKit tiles the scroll view (for example when the find
+    /// bar opens). Styling forces glyph layout, so it runs once on the next main-queue
+    /// turn instead of inside that pass; the one-screen margin covers ordinary scrolling.
+    @objc func scrolled(_ notification: Notification) {
+      guard !visibleStylingQueued, let clip = notification.object as? NSClipView,
+        let text = clip.documentView as? NSTextView
+      else { return }
+      visibleStylingQueued = true
+      DispatchQueue.main.async { [weak self, weak text] in
+        guard let self else { return }
+        visibleStylingQueued = false
+        if let text { styleVisibleText(text) }
+      }
+    }
+
+    /// A native copy of the text view's contents. `NSTextView.string` bridges to a
+    /// Foundation-backed String, and comparing such a String with a large profile source
+    /// falls back to slow Unicode comparison in every SwiftUI and model equality check.
+    var current = ""
     var lastJump: UUID?
     var lastFind: UUID?
     var onChange: (String) -> String
@@ -163,12 +238,39 @@ struct NativeProfileEditor: NSViewRepresentable {
       self.isSystem = isSystem
       self.onChange = onChange
     }
+    /// Copies the text storage into native UTF-8 in one Foundation transcoding pass,
+    /// about 20 times faster than bridging and normalizing `NSTextView.string` for a
+    /// 10,000-line profile. Unpaired UTF-16 surrogates fall back to the bridged copy.
+    static func nativeCopy(of text: NSTextView) -> String {
+      if let storage = text.textStorage {
+        let contents = storage.mutableString
+        let length = contents.length
+        guard length > 0 else { return "" }
+        var remaining = NSRange(location: 0, length: 0)
+        let copy = String(unsafeUninitializedCapacity: length * 3) { buffer in
+          var used = 0
+          contents.getBytes(
+            buffer.baseAddress, maxLength: buffer.count, usedLength: &used,
+            encoding: String.Encoding.utf8.rawValue, options: [],
+            range: NSRange(location: 0, length: length), remaining: &remaining)
+          return used
+        }
+        if remaining.length == 0 { return copy }
+      }
+      var bridged = text.string
+      bridged.makeContiguousUTF8()
+      return bridged
+    }
+
     func textDidChange(_ notification: Notification) {
       guard let text = notification.object as? NSTextView else { return }
-      let accepted = onChange(text.string)
-      if text.string != accepted {
+      let edited = Self.nativeCopy(of: text)
+      current = edited
+      let accepted = onChange(edited)
+      if edited != accepted {
         let location = min(text.selectedRange().location, (accepted as NSString).length)
         text.string = accepted
+        current = accepted
         text.setSelectedRange(NSRange(location: location, length: 0))
         text.undoManager?.removeAllActions()
       }
@@ -262,7 +364,7 @@ private final class ProfileLineRuler: NSRulerView {
       if lineStarts[mid] < characters.location { lower = mid + 1 } else { upper = mid }
     }
     var index = max(0, lower - 1)
-    let count = (text.string as NSString).length
+    let count = text.textStorage?.length ?? 0
     while index < lineStarts.count {
       let start = lineStarts[index]
       guard start <= count else { break }  // An edit may precede the asynchronous presentation.

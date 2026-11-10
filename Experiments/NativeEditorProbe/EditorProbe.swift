@@ -116,6 +116,12 @@ struct ProbeView: View {
     precondition(ruler.accessibilityValue() as? String == "10001")
     text.scrollRangeToVisible(NSRange(location: (draft.source as NSString).length, length: 0))
     ruler.displayIfNeeded()
+    // Only text near the viewport is colored; text scrolled into view is colored next turn.
+    try await Task.sleep(for: .milliseconds(100))
+    let lastLine = (draft.source as NSString).length - 25
+    precondition(
+      (layout.temporaryAttributes(atCharacterIndex: lastLine, effectiveRange: nil)[.foregroundColor]
+        as? NSColor) == .systemBlue)
     // Obsolete presentations must not recolor a newer draft with older offsets.
     draft.source = "192.0.2.1 old.example\n"
     try await Task.sleep(for: .milliseconds(30))
