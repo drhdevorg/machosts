@@ -207,6 +207,9 @@ final class AppModel {
   private var scheduleTask: Task<Void, Never>?
   #if DEBUG
     let isPrivateTest = ProcessInfo.processInfo.arguments.contains("--ui-testing-local-workspace")
+  #elseif MACHOSTS_MEASUREMENT
+    // Only a separately compiled measurement build accepts this; shipping Release does not.
+    let isPrivateTest = ProcessInfo.processInfo.arguments.contains("--measurement-workspace")
   #else
     let isPrivateTest = false
   #endif
@@ -228,7 +231,7 @@ final class AppModel {
     defer { openingWorkspace = false }
     do {
       let opened: WorkspaceStore
-      #if DEBUG
+      #if DEBUG || MACHOSTS_MEASUREMENT
         if isPrivateTest {
           opened = try await PrivateUITestWorkspace.open()
         } else {
@@ -240,6 +243,9 @@ final class AppModel {
       store = opened
       let editor = try await ProfileWorkspaceModel.open(store: opened)
       self.editor = editor
+      #if MACHOSTS_MEASUREMENT
+        if isPrivateTest { LaunchMeasurement.reportAfterNextRender(editor: editor) }
+      #endif
       system.updateWorkspace(await opened.state())
       if !isPrivateTest {
         if UserDefaults.standard.bool(forKey: AppSettings.refreshRemoteOnLaunch) {
@@ -387,11 +393,19 @@ struct SystemObservationView: View {
   }
 }
 
-#if DEBUG
+#if DEBUG || MACHOSTS_MEASUREMENT
   /// An explicit UI-test mode with a fresh private directory and no system observation.
   /// No supplied path, authorization adapter or simulated apply is accepted.
   private actor PrivateUITestWorkspace {
     static func open() async throws -> WorkspaceStore {
+      #if MACHOSTS_MEASUREMENT
+        return try await LaunchMeasurement.openSeededWorkspace()
+      #else
+        return try await openUITestWorkspace()
+      #endif
+    }
+
+    private static func openUITestWorkspace() async throws -> WorkspaceStore {
       let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
         "machosts-ui-" + UUID().uuidString, isDirectory: true)
       if ProcessInfo.processInfo.arguments.contains("--ui-testing-damaged-workspace") {
@@ -411,6 +425,68 @@ struct SystemObservationView: View {
             Profile(name: "Recovered fixture", source: "192.0.2.23 recovery.example\n")
           ]), expectedGeneration: 0)
       _ = try await store.saveDraft(Workspace(revision: 2), expectedGeneration: 1)
+    }
+  }
+#endif
+
+#if MACHOSTS_MEASUREMENT
+  /// Launch measurement for the separately compiled `MACHOSTS_MEASUREMENT` Release build.
+  /// The workspace is a fresh private temporary directory seeded with the synthetic
+  /// 100-profile/10,000-line dataset of `HostsBenchmark` (or left empty with
+  /// `--measurement-empty-workspace`). Nothing is applied and the system file is not observed.
+  enum LaunchMeasurement {
+    static func openSeededWorkspace() async throws -> WorkspaceStore {
+      let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+        "machosts-measure-" + UUID().uuidString, isDirectory: true)
+      let store = try await WorkspaceStore.open(directory: directory)
+      if !ProcessInfo.processInfo.arguments.contains("--measurement-empty-workspace") {
+        _ = try await store.saveDraft(dataset(), expectedGeneration: 0)
+      }
+      return store
+    }
+
+    /// Mirrors `HostsBenchmark`: 100 enabled profiles × 100 lines in ten folders.
+    private static func dataset() -> Workspace {
+      let folders = (0..<10).map { ProfileFolder(name: "Folder \($0)") }
+      let profiles = (0..<100).map { index in
+        var lines = ["# Synthetic benchmark profile \(index)"]
+        for line in 1..<100 {
+          let entry =
+            "198.51.\(index % 256).\(line % 256) p\(index)-h\(line).test p\(index)-a\(line).test"
+            + " # entry \(line)"
+          lines.append(line % 10 == 0 ? HostsSyntax.disabled + entry : entry)
+        }
+        return Profile(
+          name: "Profile \(index)", folderID: folders[index % folders.count].id,
+          source: lines.joined(separator: "\n") + "\n", isEnabled: true)
+      }
+      return Workspace(revision: 1, profiles: profiles, folders: folders)
+    }
+
+    /// Prints the time from process start (kernel start time, so exec and dyld are included)
+    /// until the main run loop turns after the loaded workspace was published to SwiftUI.
+    static func reportAfterNextRender(editor: ProfileWorkspaceModel) {
+      let profiles = editor.workspace.profiles.count
+      DispatchQueue.main.async {
+        DispatchQueue.main.async {
+          let line = String(
+            format: "measurement first-window-ready-ms=%.1f profiles=%d pid=%d\n",
+            millisecondsSinceProcessStart(), profiles, getpid())
+          FileHandle.standardError.write(Data(line.utf8))
+        }
+      }
+    }
+
+    private static func millisecondsSinceProcessStart() -> Double {
+      var info = kinfo_proc()
+      var size = MemoryLayout<kinfo_proc>.stride
+      var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+      guard sysctl(&name, 4, &info, &size, nil, 0) == 0 else { return -1 }
+      let start = info.kp_proc.p_un.__p_starttime
+      var now = timeval()
+      gettimeofday(&now, nil)
+      return Double(now.tv_sec - start.tv_sec) * 1_000
+        + Double(Int(now.tv_usec) - Int(start.tv_usec)) / 1_000
     }
   }
 #endif

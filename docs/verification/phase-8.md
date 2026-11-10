@@ -74,14 +74,51 @@ with 43 mismatches; the code was then restored.
 - `xcrun swift-format lint --strict` over the documented paths passed.
 - Release build succeeded; `codesign` shows `adhoc,runtime`.
 
+## Native launch, idle CPU and memory (measurement build)
+
+Measured November 10, 2026 on the same device. Launching the shipping Release app would
+open the real user workspace, so these values come from a separately compiled Release
+variant with the `MACHOSTS_MEASUREMENT` compilation condition (see
+[Development](../DEVELOPMENT.md)). It is built with the same optimization and signing settings.
+With `--measurement-workspace` it opens a fresh private temporary workspace seeded with
+the benchmark dataset above (100 enabled profiles, 10,000 lines, ten folders) or an empty
+one. It applies nothing, starts no system observation, remote refresh or schedule, and
+shows the private-workspace marker. The shipping Release binary contains neither switch
+string (`strings` count 0); the measurement binary contains it.
+
+| Measurement | Result | Budget |
+| --- | ---: | ---: |
+| First window ready, 100 profiles, six consecutive launches | 669–684 ms, median 678 ms | ≤ 2,000 ms |
+| Idle CPU, 100 profiles, 60 s starting 10 s after ready | 0.02 s CPU = 0.03 % of one core | < 1 % |
+| Idle CPU, empty workspace, same window | 0.19 s CPU = 0.32 % of one core | < 1 % |
+| Resident memory after 70 s, empty workspace | 141.8 MiB RSS, 54 MB physical footprint | ≤ 150 MiB (target) |
+| Resident memory after 70 s, 100 profiles | 148.0 MiB RSS, 61 MB physical footprint | — |
+
+- "First window ready" runs from the kernel process start time (`sysctl` `p_starttime`,
+  so exec and dyld are included) until two main-queue turns after the loaded workspace is
+  published to SwiftUI. It approximates the first rendered frame and does not prove the
+  window accepts input. A window listing (`CGWindowListCopyWindowInfo`) showed one
+  1050 × 740 on-screen window for the launching process.
+- CPU time is the `ps` cumulative time difference; RSS is `ps` resident size and includes
+  shared system framework pages, so the `footprint` value is the app-attributable figure.
+  Empty-editor RSS is within the 150 MiB investigation target, but with little margin.
+- The app was started directly from the shell, outside the coding sandbox (the sandbox
+  blocks the window-server connection), and stopped with SIGTERM. Each run used its own
+  `machosts-measure-*` directory, and these were removed afterwards.
+- Launching with `-ApplePersistenceIgnoreState YES` opened no window in five of five
+  launches (0.19 s CPU, no workspace loaded); without the flag, every launch opened its
+  window. Normal launches do not pass this flag, so it is a test-launch artifact. Because of
+  it, these runs used normal window-state saving for `de.machosts.app`.
+
 ## Not done
 
 - A prefilter that skipped per-line search was measured and reverted: Foundation's
   case-insensitive search is itself the cost (worst case 130 ms). An exact byte replacement
   would need Unicode case folding (for example "ß" and "ss"). Search runs on its own actor,
   off the main thread.
-- Native budgets (main window ≤ 2 s, warm menu ≤ 150 ms, typing and scrolling, idle CPU
-  < 1 % over 60 s, empty-editor RSS) are unmeasured. Launching the Release app would open the
-  real user workspace and observe the system file, so it needs a private measurement mode or
-  a disposable account. VoiceOver, keyboard, contrast and motion checks, the failure-matrix
+- Warm menu ≤ 150 ms, typing and scrolling stalls, and interaction latency of the first
+  window are unmeasured: they need UI automation, which is still blocked by
+  Accessibility authorization. Idle CPU was measured without system observation; idle
+  behavior with observation running, and the absence of periodic networking, still need a
+  separate check. VoiceOver, keyboard, contrast and motion checks, the failure-matrix
   rerun and `docs/USER-GUIDE.md` remain open.

@@ -48,6 +48,24 @@ The package benchmark measures parse, plan, editor presentation, search and priv
 swift run --package-path Packages/MacHostsKit -c release HostsBenchmark
 ```
 
+Native Release budgets use a separately compiled measurement variant. Only the
+`MACHOSTS_MEASUREMENT` compilation condition differs from Release; the shipping
+configuration does not define it and ignores the switch. Build into its own derived-data
+directory so it never replaces the normal Release product:
+
+```sh
+xcodebuild -project MacHosts.xcodeproj -scheme MacHosts -configuration Release -destination 'platform=macOS,arch=arm64' -derivedDataPath /tmp/machosts-measure-derived SWIFT_ACTIVE_COMPILATION_CONDITIONS=MACHOSTS_MEASUREMENT build
+```
+
+Launched with `--measurement-workspace`, it opens a fresh private temporary
+`machosts-measure-*` workspace seeded with the `HostsBenchmark` dataset (empty with
+`--measurement-empty-workspace`), shows the private-workspace marker, starts no system
+observation, remote refresh or schedule, and prints
+`measurement first-window-ready-ms=…` to standard error. The value runs from the kernel
+process start time until two main-queue turns after the loaded workspace is published, so
+it approximates the first rendered frame. It is not an interaction measurement. Delete the
+temporary workspaces afterwards.
+
 Swift Testing checks core parsing/composition, private workspace transactions, recovery, and autosave. Apply tests also cover revision changes, cancellation, duplicate calls, app-save failures, and receipt/readback recovery. The original adapter holds system bytes in memory; a further adapter connects the coordinator end to end to the actual private file transaction engine. Workspace/migration writes use private temporary directories.
 
 System tests execute private backups/journals, atomic replacement, metadata checks, and injected failures. Their adapter creates its own private temporary directory and exists only in the test target; no product destination is selectable. Process tests terminate workers at eight commit boundaries with `_exit(86)` and start independent recovery processes. They cover corrupt/external recovery data and both process locks. Nine further cases terminate during intent/result/recovery saves; four cases exercise a worker surviving app exit, completing normally or receiving SIGKILL before/after rename. Recovery stays blocked while the worker lock is held and preserves newer drafts. Seven retirement-termination cases verify durable replay tombstones. These tests need `swift test` with the documented `swiftpm-testing-helper`; other runners are unverified.
