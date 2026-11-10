@@ -196,6 +196,30 @@ Checks run:
   `git diff --check` passed. Release app and embedded `MacHostsApply` verify deep/strict
   with `adhoc,runtime` flags. German catalog entries exist for all new strings.
 
-**Not executed:** local URLSession server tests (timeout, real redirect chains, TLS
-errors, streamed oversize, cancellation), a real public HTTPS request, and native UI
-acceptance. SwitchHosts import and replacement imports remain open. Gate 7 remains open.
+### In-process URLSession transport tests (November 10, 2026)
+
+`RemoteTransportTests.swift` runs the production `URLSessionRemoteTransport` (same
+ephemeral configuration and redirect/auth delegate) with a test-only `URLProtocol`
+injected through an internal initializer. Requests never leave the process; each test
+uses its own `.example` host. Covered: content and validators through the real session;
+two same-host HTTPS redirect hops with `Authorization`/`Cookie` stripped on every hop;
+HTTPS→HTTP and user-info redirects rejected; a redirect loop stopped after exactly three
+permitted hops; non-HTTPS initial URLs refused before loading; streamed bodies without
+`Content-Length` above the 1 MiB bound rejected, a declared oversize `Content-Length`
+rejected before reading, a body at exactly the limit accepted; 503 mapped to
+`httpStatus` without reading the body; loader TLS/timeout/offline errors mapped through
+the session; cancelling a hanging request yields `cancelled`.
+
+- `swift test --package-path Packages/MacHostsKit`: **171 tests passed** (30 System,
+  129 Services, 12 Core). A mutation check (removing the `Authorization` strip and
+  raising the hop limit) made the redirect tests fail; the source was restored.
+- Release build, strict formatting and `git diff --check` passed.
+
+These tests replace the TLS handshake and socket layer with the in-process loader, so
+certificate evaluation, real request timeouts and network behavior are still covered only
+by the system frameworks.
+
+**Not executed:** a real public HTTPS request, real TLS certificate failures and real
+timeouts against a network server, and native UI acceptance. SwitchHosts import (needs
+representative real v4/v5 export fixtures) and replacement imports remain open. Gate 7
+remains open.

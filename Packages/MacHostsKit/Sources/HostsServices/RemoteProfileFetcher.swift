@@ -130,8 +130,14 @@ public struct RemoteProfileFetcher: Sendable {
 public final class URLSessionRemoteTransport: RemoteTransport {
   private let session: URLSession
 
-  public init() {
+  public convenience init() {
+    self.init(protocolClasses: nil)
+  }
+
+  /// Tests inject local URLProtocol classes; the session policy is otherwise identical.
+  init(protocolClasses: [AnyClass]?) {
     let configuration = URLSessionConfiguration.ephemeral
+    if let protocolClasses { configuration.protocolClasses = protocolClasses }
     configuration.timeoutIntervalForRequest = RemoteSourceLimits.requestSeconds
     configuration.timeoutIntervalForResource = RemoteSourceLimits.requestSeconds
     configuration.httpCookieStorage = nil
