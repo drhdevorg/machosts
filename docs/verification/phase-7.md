@@ -223,3 +223,30 @@ by the system frameworks.
 timeouts against a network server, and native UI acceptance. SwitchHosts import (needs
 representative real v4/v5 export fixtures) and replacement imports remain open. Gate 7
 remains open.
+
+## JSON workspace replacement with backup (November 10, 2026)
+
+- `WorkspaceExchangeDocument.replacing` builds a draft from only the selected import
+  (inactive local profiles, fresh identities, empty trash) and continues the revision.
+- `WorkspaceStore.writeBackup/backups/readBackup`: exact current snapshot bytes go to a
+  new private `workspace.backup-<UTC>-<id>.json` (generation- and digest-checked,
+  existing names refused, read back after rename); only listed names are readable and
+  must decode as a valid current-schema snapshot.
+- `ProfileWorkspaceModel.replaceWorkspace/restoreBackup`: flush first, block edits
+  while backing up, replace the draft in one revision, save; failures leave the draft
+  unchanged with `backupFailed`/`invalidBackup`. Applied snapshot and intents untouched.
+- UI: JSON review "Replace workspace…" with destructive confirmation; "Restore draft
+  from backup…" menu with confirmation; German/English catalog entries for all strings.
+
+Evidence:
+
+- `swift test --package-path Packages/MacHostsKit`: **176 tests passed** (30 System,
+  134 Services, 12 Core), including five new `WorkspaceReplacementTests` (replacement
+  draft shape; unsaved edits flushed into an exact backup and persisted replacement
+  after reopen; restore backing up the replaced draft and returning profiles/trash;
+  backup failure in a non-writable private directory leaving the draft unchanged and
+  editable; unlisted names and stale generations rejected).
+- Release build passed with `adhoc,runtime` signature; strict formatting, localization
+  key coverage and `git diff --check` passed.
+
+**Not executed:** native confirmation/menu acceptance and VoiceOver. Gate 7 remains open.

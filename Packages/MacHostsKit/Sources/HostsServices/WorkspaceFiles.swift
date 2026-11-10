@@ -135,6 +135,35 @@ final class WorkspaceFiles: Sendable {
     try publish(data, name: "workspace.json", expected: expected, faultInjection: true)
   }
 
+  /// Publishes a new private file under a fresh name after confirming the current snapshot
+  /// still has the expected bytes. Existing files are never replaced.
+  func writeNew(_ data: Data, name: String, expectedCurrent: ContentDigest?) throws {
+    try checkCurrent(expectedCurrent)
+    guard try read(name) == nil else { throw WorkspaceStoreFailure.unsafeFile }
+    try publish(data, name: name, faultInjection: false)
+  }
+
+  /// Regular-file names in the private directory with the given prefix and suffix.
+  func names(prefix: String, suffix: String) throws -> [String] {
+    let fd = openat(directoryFD, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+    guard fd >= 0 else { throw WorkspaceStoreFailure.io(errno) }
+    guard let directory = fdopendir(fd) else {
+      close(fd)
+      throw WorkspaceStoreFailure.io(errno)
+    }
+    defer { closedir(directory) }
+    var result: [String] = []
+    while let entry = readdir(directory) {
+      guard Int32(entry.pointee.d_type) == DT_REG else { continue }
+      let length = Int(entry.pointee.d_namlen)
+      let name = withUnsafeBytes(of: entry.pointee.d_name) {
+        String(decoding: $0.prefix(length), as: UTF8.self)
+      }
+      if name.hasPrefix(prefix), name.hasSuffix(suffix) { result.append(name) }
+    }
+    return result
+  }
+
   private func publish(
     _ data: Data, name: String, expected: ContentDigest? = nil, faultInjection: Bool
   ) throws {

@@ -69,7 +69,7 @@ Explicit append assigns fresh IDs to every selected profile/included folder, rem
 creates inactive local profiles with revision zero. Existing objects, including
 same-name folders/profiles, remain separate. Reimport intentionally creates another
 set of independent copies. There is no merge/update-by-name or ID, deduplication,
-replacement, network refresh or implicit activation. The append is one draft
+network refresh or implicit activation; replacement is a separate confirmed action. The append is one draft
 revision and uses ordinary autosave; it does not establish applied state.
 
 Names, unique IDs, complete folder references, acyclic hierarchy (at most 16
@@ -81,7 +81,30 @@ source and size validation before selection; excluded malformed objects do not b
 validation. Unknown selection IDs are rejected. All-or-nothing failure preserves the current
 draft and reviewed import. Nothing is silently truncated.
 
-Gate 7 remains open. Workspace replacement requires a separate explicit review and
-prior local backup; that flow, SwitchHosts formats, remote profiles and native
-file-panel/accessibility acceptance remain outstanding. Verification is recorded in
+## Workspace replacement and backups
+
+**Replace workspace…** in the same review uses the same selection. A confirmation
+dialog states that every current profile, folder and deleted profile leaves the
+draft. On confirmation MacHosts:
+
+1. saves any pending draft edits (replacement stops if saving fails);
+2. writes the exact saved workspace snapshot to a new private file
+   `workspace.backup-YYYYMMDD-HHMMSS-<id>.json` (UTC) next to `workspace.json` in
+   `~/Library/Application Support/MacHosts/`, refusing existing names, and reads it back;
+3. only then replaces the draft with the selected folders and inactive local profiles
+   (fresh identities, empty trash) as one new revision, and saves it.
+
+If the backup fails, the draft is unchanged and stays editable. Edits are blocked
+while the backup is written. Replacement changes only the draft: the applied snapshot,
+pending apply intents and the system hosts file are untouched, so the menu bar and
+preview show the replaced draft as not applied.
+
+**Restore draft from backup…** lists backups newest first. Restoring backs up the
+current draft first, then restores the backed-up draft (profiles, folders, deleted
+profiles, remote origins and cached content) as a new revision. Applied state and
+intents are not restored. Only listed current-schema backups that pass full
+validation are accepted. Backups are never deleted automatically.
+
+Gate 7 remains open. SwitchHosts formats and native file-panel/accessibility
+acceptance remain outstanding. Verification is recorded in
 [phase 7](verification/phase-7.md).

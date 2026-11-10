@@ -74,7 +74,59 @@ public final class ProfileWorkspaceModel {
   }
 
   public var isReadOnly: Bool {
-    isRecovering || autosave == nil || persisted.readOnlyReason != nil
+    isRecovering || isReplacing || autosave == nil || persisted.readOnlyReason != nil
+  }
+
+  public private(set) var isReplacing = false
+
+  /// Replaces the whole draft with a reviewed import after saving the current draft and
+  /// writing a private backup of that exact snapshot. Returns the backup name, or nil
+  /// with the current draft unchanged. Applied system state is never touched.
+  public func replaceWorkspace(with document: WorkspaceExchangeDocument) async -> String? {
+    await replaceDraft { try document.replacing($0) }
+  }
+
+  /// Restores the draft (profiles, folders, trash) from a replacement backup. The current
+  /// draft is backed up first; applied state and pending apply intents stay as they are.
+  public func restoreBackup(_ name: String) async -> String? {
+    let snapshot: WorkspaceSnapshot
+    do { snapshot = try await store.readBackup(name) } catch {
+      editFailure = .invalidBackup
+      return nil
+    }
+    return await replaceDraft { current in
+      var restored = snapshot.draft
+      restored.revision = current.revision
+      return restored
+    }
+  }
+
+  public func backups() async -> [String] {
+    (try? await store.backups()) ?? []
+  }
+
+  private func replaceDraft(_ make: (Workspace) throws -> Workspace) async -> String? {
+    guard !isReadOnly, await flush(), !hasUnsavedChanges, !isReadOnly,
+      let generation = persisted.snapshot?.generation, persisted.snapshot?.draft == workspace
+    else { return nil }
+    let next: Workspace
+    do { next = try make(workspace) } catch {
+      editFailure = (error as? WorkspaceFailure) ?? .limitExceeded
+      return nil
+    }
+    // No edits can interleave while the backup is written.
+    isReplacing = true
+    let backup: String
+    do {
+      backup = try await store.writeBackup(expectedGeneration: generation)
+    } catch {
+      isReplacing = false
+      editFailure = .backupFailed
+      return nil
+    }
+    isReplacing = false
+    guard change({ $0 = next }), await flush() else { return nil }
+    return backup
   }
   public var hasUnsavedChanges: Bool { workspace != savedDraft }
   public var hasUnappliedChanges: Bool {

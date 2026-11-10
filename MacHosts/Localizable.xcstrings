@@ -3217,18 +3217,18 @@
         }
       }
     },
-    "Selected profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced.": {
+    "Append adds the selected profiles inactive with new identities; existing profiles and same-name folders remain separate. Replace swaps the whole draft only after a confirmed backup.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Selected profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced."
+            "value": "Append adds the selected profiles inactive with new identities; existing profiles and same-name folders remain separate. Replace swaps the whole draft only after a confirmed backup."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ausgewählte Profile werden mit neuen Identitäten inaktiv hinzugefügt. Bestehende Profile und gleichnamige Ordner bleiben getrennt. Nichts wird ersetzt."
+            "value": "Hinzufügen übernimmt die ausgewählten Profile inaktiv mit neuen Identitäten; bestehende Profile und gleichnamige Ordner bleiben getrennt. Ersetzen tauscht den gesamten Entwurf erst nach einer bestätigten Sicherung aus."
           }
         }
       }
@@ -4301,6 +4301,198 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieser Bericht enthält nur Zustände, Anzahlen und Fehlerkategorien. Er enthält keine Profilnamen, Profilinhalte, Hostnamen oder Adressen von Remote-Quellen."
+          }
+        }
+      }
+    },
+    "The backup could not be saved. The workspace was not replaced.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The backup could not be saved. The workspace was not replaced."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sicherung konnte nicht gespeichert werden. Der Arbeitsbereich wurde nicht ersetzt."
+          }
+        }
+      }
+    },
+    "The backup could not be read. The workspace was not changed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The backup could not be read. The workspace was not changed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sicherung konnte nicht gelesen werden. Der Arbeitsbereich wurde nicht geändert."
+          }
+        }
+      }
+    },
+    "Restore draft from backup…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore draft from backup…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf aus Sicherung wiederherstellen …"
+          }
+        }
+      }
+    },
+    "Restore the workspace draft from this backup?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore the workspace draft from this backup?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitsbereichsentwurf aus dieser Sicherung wiederherstellen?"
+          }
+        }
+      }
+    },
+    "Back up current draft and restore": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back up current draft and restore"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuellen Entwurf sichern und wiederherstellen"
+          }
+        }
+      }
+    },
+    "Profiles, folders and deleted profiles are restored as they were saved. The current draft is backed up first. The system hosts file is not changed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profiles, folders and deleted profiles are restored as they were saved. The current draft is backed up first. The system hosts file is not changed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile, Ordner und gelöschte Profile werden wie gespeichert wiederhergestellt. Der aktuelle Entwurf wird zuerst gesichert. Die System-Hosts-Datei wird nicht verändert."
+          }
+        }
+      }
+    },
+    "Replace workspace…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace workspace…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitsbereich ersetzen …"
+          }
+        }
+      }
+    },
+    "Replace the entire workspace draft?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace the entire workspace draft?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den gesamten Arbeitsbereichsentwurf ersetzen?"
+          }
+        }
+      }
+    },
+    "Back up and replace": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back up and replace"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern und ersetzen"
+          }
+        }
+      }
+    },
+    "All current profiles, folders and deleted profiles are removed from the draft and replaced by the selected import as inactive profiles. A backup of the current workspace is saved first and can be restored here. The system hosts file is not changed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All current profiles, folders and deleted profiles are removed from the draft and replaced by the selected import as inactive profiles. A backup of the current workspace is saved first and can be restored here. The system hosts file is not changed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle aktuellen Profile, Ordner und gelöschten Profile werden aus dem Entwurf entfernt und durch den ausgewählten Import als inaktive Profile ersetzt. Zuvor wird eine Sicherung des aktuellen Arbeitsbereichs gespeichert, die hier wiederhergestellt werden kann. Die System-Hosts-Datei wird nicht verändert."
+          }
+        }
+      }
+    },
+    "Workspace draft replaced. A backup was saved. Profiles remain inactive.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace draft replaced. A backup was saved. Profiles remain inactive."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitsbereichsentwurf ersetzt. Eine Sicherung wurde gespeichert. Profile bleiben inaktiv."
+          }
+        }
+      }
+    },
+    "The workspace was not replaced. Save pending changes, check limits, and try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The workspace was not replaced. Save pending changes, check limits, and try again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Arbeitsbereich wurde nicht ersetzt. Ausstehende Änderungen speichern, Grenzen prüfen und erneut versuchen."
           }
         }
       }

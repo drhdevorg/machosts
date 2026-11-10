@@ -141,6 +141,15 @@ public struct WorkspaceExchangeDocument: Encodable, Sendable {
   }
 }
 
+extension WorkspaceExchangeDocument {
+  /// The complete replacement draft: only this document's folders and inactive local
+  /// profiles with fresh identities. Current profiles, folders and trash are dropped from
+  /// the draft (callers back them up first); the revision continues from the current draft.
+  public func replacing(_ workspace: Workspace) throws -> Workspace {
+    try appending(to: Workspace(revision: workspace.revision))
+  }
+}
+
 public actor WorkspaceExchange {
   private let files = HostsTextExchange()
   public init() {}

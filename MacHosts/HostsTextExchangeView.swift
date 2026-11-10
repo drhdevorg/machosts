@@ -198,6 +198,9 @@ private struct WorkspaceJSONExchangeView: View {
   @Binding var busy: Bool
   @State private var message: String?
   @State private var showingReview = false
+  @State private var confirmingReplace = false
+  @State private var backupNames: [String] = []
+  @State private var restoring: String?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -214,8 +217,32 @@ private struct WorkspaceJSONExchangeView: View {
           .accessibilityIdentifier("exportWorkspaceJSON")
           .disabled(busy)
       }
+      if !backupNames.isEmpty {
+        Menu("Restore draft from backup…") {
+          ForEach(backupNames, id: \.self) { name in
+            Button(backupLabel(name)) { restoring = name }
+          }
+        }
+        .accessibilityIdentifier("restoreWorkspaceBackup")
+        .fixedSize()
+        .disabled(busy || editor.isReadOnly)
+      }
       if busy { ProgressView() }
       if let message { Text(message).accessibilityIdentifier("jsonExchangeMessage") }
+    }
+    .task { backupNames = await editor.backups() }
+    .confirmationDialog(
+      "Restore the workspace draft from this backup?",
+      isPresented: Binding(get: { restoring != nil }, set: { if !$0 { restoring = nil } })
+    ) {
+      Button("Back up current draft and restore", role: .destructive) {
+        guard let name = restoring else { return }
+        Task { await replace { await editor.restoreBackup(name) } }
+      }
+    } message: {
+      Text(
+        "Profiles, folders and deleted profiles are restored as they were saved. The current draft is backed up first. The system hosts file is not changed."
+      )
     }
     .sheet(isPresented: $showingReview) {
       if let review {
@@ -223,7 +250,7 @@ private struct WorkspaceJSONExchangeView: View {
         VStack(alignment: .leading, spacing: 12) {
           Text("Review JSON import").font(.title2)
           Text(
-            "Selected profiles are appended inactive with new identities. Existing profiles and same-name folders remain separate. Nothing is replaced."
+            "Append adds the selected profiles inactive with new identities; existing profiles and same-name folders remain separate. Replace swaps the whole draft only after a confirmed backup."
           )
           Text("Profiles: \(review.profiles.count), folders: \(review.folders.count)")
           HStack {
@@ -298,6 +325,11 @@ private struct WorkspaceJSONExchangeView: View {
           HStack {
             Button("Cancel") { showingReview = false }.keyboardShortcut(.cancelAction)
             Spacer()
+            Button("Replace workspace…") { confirmingReplace = true }
+              .accessibilityIdentifier("replaceWorkspaceJSON")
+              .disabled(
+                editor.isReadOnly
+                  || (includedProfiles.isEmpty && (!includeAllFolders || review.folders.isEmpty)))
             Button("Append inactive profiles") {
               do {
                 let subset = try review.selecting(
@@ -316,6 +348,22 @@ private struct WorkspaceJSONExchangeView: View {
                 || (includedProfiles.isEmpty && (!includeAllFolders || review.folders.isEmpty)))
           }
         }.padding(24).frame(width: 720, height: 720)
+          .confirmationDialog(
+            "Replace the entire workspace draft?", isPresented: $confirmingReplace
+          ) {
+            Button("Back up and replace", role: .destructive) {
+              do {
+                let subset = try review.selecting(
+                  profileIDs: includedProfiles, includeAllFolders: includeAllFolders)
+                showingReview = false
+                Task { await replace { await editor.replaceWorkspace(with: subset) } }
+              } catch { message = errorText(error) }
+            }
+          } message: {
+            Text(
+              "All current profiles, folders and deleted profiles are removed from the draft and replaced by the selected import as inactive profiles. A backup of the current workspace is saved first and can be restored here. The system hosts file is not changed."
+            )
+          }
           .task(id: selected) {
             inspected = nil
             guard let source = review.profiles.first(where: { $0.id == selected })?.source else {
@@ -329,6 +377,36 @@ private struct WorkspaceJSONExchangeView: View {
           }
       }
     }
+  }
+
+  private func replace(_ operation: () async -> String?) async {
+    busy = true
+    defer { busy = false }
+    if await operation() != nil {
+      message = String(
+        localized: "Workspace draft replaced. A backup was saved. Profiles remain inactive.")
+    } else if let failure = editor.editFailure {
+      message = editFailureText(failure)
+    } else {
+      message = String(
+        localized:
+          "The workspace was not replaced. Save pending changes, check limits, and try again.")
+    }
+    backupNames = await editor.backups()
+  }
+
+  /// Backup names carry a UTC timestamp (`workspace.backup-YYYYMMDD-HHMMSS-id.json`).
+  private func backupLabel(_ name: String) -> String {
+    let parts = name.split(separator: "-")
+    guard parts.count >= 3,
+      let date = try? Date(
+        String(parts[1] + parts[2]),
+        strategy: Date.ParseStrategy(
+          format:
+            "\(year: .defaultDigits)\(month: .twoDigits)\(day: .twoDigits)\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))\(minute: .twoDigits)\(second: .twoDigits)",
+          timeZone: .gmt))
+    else { return name }
+    return date.formatted(date: .abbreviated, time: .standard)
   }
 
   private func chooseImport() {

@@ -30,7 +30,7 @@ Phases 1–3 may be fully developed, and phases 4–7 may use private fixtures/a
 | 4 | Production apply/backup/recovery | Partial: coordinator/private engine, process lifecycles, observation, durable orphan retirement verified on fixtures; gate open | 2, 3; gate 0 for real integration |
 | 5 | Native app, editor, main workflows | Partial: profiles, folders, search, styled editor, system contents, frozen read-only preview, local workspace recovery; native acceptance/gate open | 4 |
 | 6 | Menu bar, login start, system diagnostics | Partial: menu bar, opt-in login item, redacted diagnostics implemented; package tests/builds pass, native acceptance open ([evidence](verification/phase-6.md)) | 5 |
-| 7 | Remote profiles and migration/export | Partial: bounded `.hosts`, version-1 JSON selective append/export, remote HTTPS profiles with in-process URLSession transport tests (171-test run passed); SwitchHosts/replacement and native acceptance open | 3, 5 |
+| 7 | Remote profiles and migration/export | Partial: bounded `.hosts`, version-1 JSON selective append/export, remote HTTPS profiles with in-process URLSession transport tests, JSON workspace replacement with backup/restore (176-test run passed); SwitchHosts and native acceptance open | 3, 5 |
 | 8 | Hardening, accessibility, performance, beta | Open | 6, 7 |
 | 9 | Release artifact and production acceptance | Open | 8 |
 

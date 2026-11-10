@@ -155,6 +155,7 @@ public enum WorkspaceFailure: Error, Equatable, Sendable {
   case unsupportedSchema, staleRevision, revisionOverflow, limitExceeded, duplicateID
   case invalidFolder, invalidName, missingProfile, readOnlyProfile, notAnEntry
   case invalidRemoteURL
+  case backupFailed, invalidBackup
 }
 
 public struct Workspace: Codable, Equatable, Sendable {

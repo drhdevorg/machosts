@@ -291,6 +291,38 @@ public actor WorkspaceStore {
     return next
   }
 
+  static let backupPrefix = "workspace.backup-"
+
+  /// Writes the exact current snapshot bytes to a new private backup file before a
+  /// workspace replacement. The current snapshot itself is not changed.
+  public func writeBackup(expectedGeneration: UInt64, at date: Date = Date()) throws -> String {
+    let current = try writable(expectedGeneration)
+    let data = try persistedBytes ?? current.encoded()
+    let stamp = date.formatted(
+      Date.VerbatimFormatStyle(
+        format:
+          "\(year: .defaultDigits)\(month: .twoDigits)\(day: .twoDigits)-\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased))\(minute: .twoDigits)\(second: .twoDigits)",
+        timeZone: .gmt, calendar: Calendar(identifier: .gregorian)))
+    let name =
+      Self.backupPrefix + stamp + "-" + UUID().uuidString.prefix(8).lowercased() + ".json"
+    try files.writeNew(
+      data, name: name, expectedCurrent: persistedBytes.map(ContentDigest.init))
+    return name
+  }
+
+  /// Backup names, newest first (names sort by UTC timestamp).
+  public func backups() throws -> [String] {
+    try files.names(prefix: Self.backupPrefix, suffix: ".json").sorted(by: >)
+  }
+
+  /// Reads one listed backup. Only current-schema, fully valid snapshots are returned.
+  public func readBackup(_ name: String) throws -> WorkspaceSnapshot {
+    guard try backups().contains(name), let data = try files.read(name) else {
+      throw WorkspaceStoreFailure.unsafeFile
+    }
+    return try Self.decode(data)
+  }
+
   private func writable(_ expectedGeneration: UInt64) throws -> WorkspaceSnapshot {
     guard load.readOnlyReason == nil else { throw WorkspaceStoreFailure.readOnly }
     guard let current = load.snapshot else { throw WorkspaceStoreFailure.notLoaded }

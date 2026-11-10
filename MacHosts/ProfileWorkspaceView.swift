@@ -673,7 +673,7 @@ private struct ProfileDetailView: View {
 
 }
 
-private func editFailureText(_ failure: WorkspaceFailure) -> String {
+func editFailureText(_ failure: WorkspaceFailure) -> String {
   switch failure {
   case .invalidName:
     String(localized: "Enter a valid, nonempty profile name (up to 200 UTF-8 bytes).")
@@ -688,6 +688,10 @@ private func editFailureText(_ failure: WorkspaceFailure) -> String {
     String(localized: "Enter an HTTPS address without user name or password.")
   case .staleRevision:
     String(localized: "The profile changed. Retry the action on the current text.")
+  case .backupFailed:
+    String(localized: "The backup could not be saved. The workspace was not replaced.")
+  case .invalidBackup:
+    String(localized: "The backup could not be read. The workspace was not changed.")
   default: String(localized: "The change could not be accepted. The previous draft was preserved.")
   }
 }
