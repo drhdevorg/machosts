@@ -46,10 +46,10 @@ struct ProbeView: View {
     precondition(!text.isRichText && text.allowsUndo && text.usesFindBar)
     precondition(ruler.accessibilityValue() as? String == "3")
     let attributes = layout.temporaryAttributes(atCharacterIndex: 12, effectiveRange: nil)
-    precondition((attributes[.foregroundColor] as? NSColor) == .systemBlue)
+    precondition((attributes[.foregroundColor] as? NSColor) == EditorPalette.address)
     precondition(
       text.textStorage?.attribute(.foregroundColor, at: 12, effectiveRange: nil) as? NSColor
-        != .systemBlue)
+        != EditorPalette.address)
     window.makeFirstResponder(text)
     text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
     text.insertText("invalid", replacementRange: text.selectedRange())
@@ -59,7 +59,7 @@ struct ProbeView: View {
     let invalid = layout.temporaryAttributes(
       atCharacterIndex: (original as NSString).length,
       effectiveRange: nil)
-    precondition((invalid[.foregroundColor] as? NSColor) == .systemRed)
+    precondition((invalid[.foregroundColor] as? NSColor) == EditorPalette.invalid)
     precondition(text.selectedRange().location == (draft.source as NSString).length)
     precondition(text.undoManager?.canUndo == true)
     text.undoManager?.undo()
@@ -121,7 +121,7 @@ struct ProbeView: View {
     let lastLine = (draft.source as NSString).length - 25
     precondition(
       (layout.temporaryAttributes(atCharacterIndex: lastLine, effectiveRange: nil)[.foregroundColor]
-        as? NSColor) == .systemBlue)
+        as? NSColor) == EditorPalette.address)
     // Obsolete presentations must not recolor a newer draft with older offsets.
     draft.source = "192.0.2.1 old.example\n"
     try await Task.sleep(for: .milliseconds(30))
@@ -131,7 +131,7 @@ struct ProbeView: View {
     precondition(ruler.accessibilityValue() as? String == "2")
     precondition(
       (layout.temporaryAttributes(atCharacterIndex: 0, effectiveRange: nil)[.foregroundColor]
-        as? NSColor) == .secondaryLabelColor)
+        as? NSColor) == EditorPalette.secondary)
     draft.source =
       "# 🌍 Unicode comment\r\n192.0.2.1 stage.example # staging\r\n# machosts-disabled: ::1 local.test\ninvalid address\n"
     try await Task.sleep(for: .milliseconds(450))

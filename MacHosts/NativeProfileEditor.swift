@@ -176,7 +176,7 @@ struct NativeProfileEditor: NSViewRepresentable {
         let part = NSIntersectionRange(span.range, range)
         if part.length > 0 {
           layout.addTemporaryAttribute(
-            .backgroundColor, value: NSColor.systemBlue.withAlphaComponent(0.12),
+            .backgroundColor, value: EditorPalette.managedBackground,
             forCharacterRange: part)
         }
       }
@@ -195,14 +195,8 @@ struct NativeProfileEditor: NSViewRepresentable {
         if span.range.location >= NSMaxRange(range) { break }
         let part = NSIntersectionRange(span.range, range)
         guard part.length > 0 else { continue }
-        let color: NSColor
-        switch span.style {
-        case .address: color = .systemBlue
-        case .hostname: color = .textColor
-        case .comment, .disabled, .managed: color = .secondaryLabelColor
-        case .invalid: color = .systemRed
-        }
-        layout.addTemporaryAttribute(.foregroundColor, value: color, forCharacterRange: part)
+        layout.addTemporaryAttribute(
+          .foregroundColor, value: EditorPalette.color(for: span.style), forCharacterRange: part)
         if span.style == .invalid {
           layout.addTemporaryAttribute(
             .underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: part)
@@ -381,7 +375,7 @@ private final class ProfileLineRuler: NSRulerView {
           NSPoint(x: 0, y: fragment.minY + text.textContainerOrigin.y), from: text)
         let label = String(index + 1) as NSString
         let attributes: [NSAttributedString.Key: Any] = [
-          .font: numberFont, .foregroundColor: NSColor.secondaryLabelColor,
+          .font: numberFont, .foregroundColor: EditorPalette.lineNumber,
         ]
         let size = label.size(withAttributes: attributes)
         label.draw(
@@ -391,6 +385,38 @@ private final class ProfileLineRuler: NSRulerView {
           withAttributes: attributes)
       }
       index += 1
+    }
+  }
+}
+
+/// Editor text colors, checked against the 4.5:1 WCAG AA minimum for text of this size
+/// on the text background and on the managed-block highlight. The system blue, red and
+/// secondary label reach only about 3.5–4:1 against white, and the dark system blue and red
+/// fall to 4.2–4.5:1 on the dark highlight, so those are replaced by nearby colors that
+/// pass. The dark secondary label already passes and keeps following Increase Contrast.
+enum EditorPalette {
+  static func color(for style: ProfileEditorPresentation.Style) -> NSColor {
+    switch style {
+    case .address: address
+    case .hostname: .textColor
+    case .comment, .disabled, .managed: secondary
+    case .invalid: invalid
+    }
+  }
+
+  static let address = dynamic(light: rgb(0.0, 0.36, 0.78), dark: rgb(0.35, 0.65, 1.0))
+  static let invalid = dynamic(light: rgb(0.77, 0.11, 0.10), dark: rgb(1.0, 0.45, 0.42))
+  static let secondary = dynamic(light: rgb(0.40, 0.40, 0.40), dark: .secondaryLabelColor)
+  static let lineNumber = secondary
+  static let managedBackground = NSColor.systemBlue.withAlphaComponent(0.12)
+
+  private static func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> NSColor {
+    NSColor(srgbRed: red, green: green, blue: blue, alpha: 1)
+  }
+
+  private static func dynamic(light: NSColor, dark: NSColor) -> NSColor {
+    NSColor(name: nil) { appearance in
+      appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
     }
   }
 }

@@ -3,9 +3,10 @@
 November 10, 2026. Independent local work under ADR 0002. **Gate 8 is open.** This
 report covers the package benchmark and parser speedups, native launch, idle and memory
 measurements with a private measurement build, and in-process typing and scrolling
-measurements with the editor fixes they led to, an accessibility tree audit and the user
-guide. Warm menu, real input latency, VoiceOver listening tests and full keyboard checks
-remain open (see "Not done").
+measurements with the editor fixes they led to, an accessibility tree audit with focus
+return after sheets, an editor color contrast audit with the color fix it led to, warm
+menu openings, and the user guide. Real input latency, VoiceOver listening tests and full
+keyboard checks remain open (see "Not done").
 
 ## Benchmark
 
@@ -232,11 +233,76 @@ The first, AppKit-only walk flagged the window buttons and scroll arrows. A seco
 with the AX client flagged 111 rows that are named by their cell text. Both were false
 positives of the rule and were excluded as described above. No code change was needed.
 
-Limit: after Escape the main window was not key (`main-key=false`, first responder the
-window), because macOS did not activate an app started from a background shell. Focus
-return after sheets therefore remains unverified. The app contains no custom animations
-(no `withAnimation`, `.animation` or transitions), so Reduce Motion has nothing extra to
-suppress. Contrast and Reduce Transparency were not measured.
+### Focus return after sheets
+
+The first run was started from a background shell, which macOS did not activate, so the
+main window was not key after Escape. The audit now starts through `open -n --stderr`,
+which activates the app normally. Before each sheet it makes the profile editor the first
+responder, as when a shortcut opens the sheet while typing, and compares the first
+responder before opening and after Escape:
+
+| Language | Sheet | Esc closes | Main window key | Responder before → after |
+| --- | --- | --- | --- | --- |
+| English | preview | yes | yes | editor → editor |
+| English | add remote | yes | yes | editor → editor |
+| English | status | yes | yes | editor → editor |
+| German | preview | yes | yes | editor → editor |
+| German | add remote | yes | yes | editor → editor |
+| German | status | yes | yes | editor → editor |
+
+The sheets are opened through the app's window requests and closed with a synthesized
+Escape event sent through `NSApp.sendEvent`, not through the window server. Opening them
+from the toolbar or a menu was not exercised. The app contains no custom animations (no
+`withAnimation`, `.animation` or transitions), so Reduce Motion has nothing extra to
+suppress. Reduce Transparency was not measured.
+
+## Editor color contrast (measurement build)
+
+`--measurement-contrast` resolves the editor's text colors in the light and dark
+appearance, composites translucent colors over their background, and reports WCAG 2
+contrast ratios for every syntax style on the text background and on the managed-block
+highlight (system file view), plus line numbers on the ruler. The editor uses the 13-point
+system monospaced font, so the AA target is 4.5:1.
+
+The first run with the system colors found five failures:
+
+| Appearance | Color | On text | On highlight |
+| --- | --- | ---: | ---: |
+| light | addresses (system blue) | 3.52 | – |
+| light | comments, disabled, line numbers (secondary label) | 3.95 | – |
+| light | invalid (system red) | 3.57 | – |
+| dark | addresses (system blue) | 5.16 | 4.49 |
+| dark | invalid (system red) | 4.86 | 4.23 |
+
+`EditorPalette` in `NativeProfileEditor.swift` now replaces those with nearby fixed colors
+in the affected appearance. The dark secondary label passed and stays a system color, so
+it keeps following Increase Contrast; the replaced colors do not change with that setting.
+Result after the fix: lowest ratio 4.97:1 in light (gray on the highlight) and 5.44:1 in
+dark; addresses 6.27:1 (light) and 6.60:1 (dark) on the text background. The native
+editor probe was updated to expect the palette colors and passed; its light and dark
+renderings were checked visually. Errors stay marked by an underline as well as by color.
+SwiftUI views outside the editor use system styles only and were not measured.
+
+## Warm menu (measurement build)
+
+`--measurement-menu` opens the menu bar extra eleven times through its status item
+button (`performClick`) with the 100-profile dataset. It reports the time from the click
+until the menu's tracking loop first runs, which happens after the menu window is ordered
+in; each menu stays open 200 ms and must end tracking before the next opening, one second
+apart. All 33 openings in three runs succeeded, each with 17 items.
+
+| Run | Cold (first) | Warm median | Warm max |
+| --- | ---: | ---: | ---: |
+| 1 | 67.5 ms | 22.8 ms | 24.7 ms |
+| 2 | 69.8 ms | 22.1 ms | 29.9 ms |
+| 3 | 73.5 ms | 22.1 ms | 29.0 ms |
+
+Warm openings stay well within the 150 ms budget. Limits: the click is synthesized in the
+process rather than coming through the window server, the time ends at the first tracking
+loop turn rather than at a verified frame on screen, and the 100-item
+"Desired activation (draft)" submenu was not opened. A first version that cancelled each
+menu immediately in its first tracking turn stopped opening menus after two to four
+openings; waiting for the end of tracking fixed the measurement.
 
 ## User guide
 
@@ -253,11 +319,11 @@ diagnostics content and labels were checked against the code.
   case-insensitive search is itself the cost (worst case 130 ms). An exact byte replacement
   would need Unicode case folding (for example "ß" and "ss"). Search runs on its own actor,
   off the main thread.
-- Warm menu ≤ 150 ms and real input latency (keyboard events through the window server)
-  are unmeasured: they need UI automation, which is still blocked by Accessibility
-  authorization. Typing and scrolling were measured in-process only (see above). Idle
-  networking with an enabled remote schedule is not measured. Listening tests with
-  VoiceOver, full keyboard navigation, focus return after sheets, contrast and Reduce
-  Transparency, and the failure-matrix rerun remain open. The accessibility audit above
-  checks names and Escape only. The user guide documents the planned apply and removal
-  flows as not yet available; it must be updated when the system writer lands.
+- Real input latency (keyboard and mouse events through the window server) is
+  unmeasured: it needs UI automation, which is still blocked by Accessibility
+  authorization. Typing, scrolling, menu openings and sheet dismissal were driven
+  in-process only (see above). Idle networking with an enabled remote schedule is not
+  measured. Listening tests with VoiceOver, full keyboard navigation, Reduce Transparency,
+  contrast of SwiftUI views outside the editor, and the failure-matrix rerun remain open.
+  The user guide documents the planned apply and removal flows as not yet available; it
+  must be updated when the system writer lands.

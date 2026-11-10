@@ -254,6 +254,10 @@ final class AppModel {
           if LaunchMeasurement.measuresInteraction {
             Task { await LaunchMeasurement.measureInteraction(app: self, editor: editor) }
           }
+          if LaunchMeasurement.auditsContrast { LaunchMeasurement.auditContrast() }
+          if LaunchMeasurement.measuresMenu {
+            Task { await LaunchMeasurement.measureMenu() }
+          }
           if LaunchMeasurement.auditsAccessibility {
             Task { await LaunchMeasurement.auditAccessibility(app: self, editor: editor) }
           }
@@ -601,6 +605,13 @@ struct SystemObservationView: View {
         ("preview", AppModel.WindowRequest.Kind.preview), ("add-remote", .addRemote),
         ("status", .status),
       ] {
+        func responder() -> String {
+          window.firstResponder.map { String(describing: type(of: $0)) } ?? "none"
+        }
+        // Start from the editor, as when a shortcut opens the sheet while typing.
+        if let source = sourceTextView(in: window.contentView) { window.makeFirstResponder(source) }
+        try? await Task.sleep(for: .milliseconds(200))
+        let before = responder()
         app.request(kind)
         var sheet: NSWindow?
         for _ in 0..<200 {
@@ -628,11 +639,140 @@ struct SystemObservationView: View {
         try? await Task.sleep(for: .milliseconds(300))
         report(
           "accessibility-surface=\(name) escape-closes=\(closed)"
-            + " main-key=\(window.isKeyWindow) first-responder=\(window.firstResponder.map { String(describing: type(of: $0)) } ?? "none")"
+            + " main-key=\(window.isKeyWindow) responder-before=\(before) responder-after=\(responder())"
         )
         if !closed { sheet.sheetParent?.endSheet(sheet) }
       }
       report("accessibility-done")
+    }
+
+    static let auditsContrast = ProcessInfo.processInfo.arguments.contains(
+      "--measurement-contrast")
+
+    /// Reports WCAG contrast ratios of the editor's text colors against the backgrounds
+    /// they are drawn on, resolved in the light and dark appearance. Translucent colors are
+    /// composited over their background first.
+    static func auditContrast() {
+      typealias RGB = (r: CGFloat, g: CGFloat, b: CGFloat)
+      func composite(_ color: NSColor, over background: RGB) -> RGB {
+        let c = color.usingColorSpace(.sRGB) ?? .black
+        let a = c.alphaComponent
+        return (
+          c.redComponent * a + background.r * (1 - a),
+          c.greenComponent * a + background.g * (1 - a),
+          c.blueComponent * a + background.b * (1 - a)
+        )
+      }
+      func luminance(_ c: RGB) -> CGFloat {
+        func channel(_ v: CGFloat) -> CGFloat {
+          v <= 0.040_45 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b)
+      }
+      func ratio(_ a: RGB, _ b: RGB) -> CGFloat {
+        let (x, y) = (luminance(a), luminance(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+      }
+      let styles: [(String, ProfileEditorPresentation.Style)] = [
+        ("address", .address), ("hostname", .hostname), ("comment", .comment),
+        ("disabled", .disabled), ("managed", .managed), ("invalid", .invalid),
+      ]
+      for (name, appearanceName) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+        NSAppearance(named: appearanceName)?.performAsCurrentDrawingAppearance {
+          MainActor.assumeIsolated {
+            let opaque: RGB = name == "light" ? (1, 1, 1) : (0, 0, 0)
+            let text = composite(.textBackgroundColor, over: opaque)
+            let managed = composite(EditorPalette.managedBackground, over: text)
+            let window = composite(.windowBackgroundColor, over: opaque)
+            var lowest = CGFloat.infinity
+            func record(_ label: String, _ value: CGFloat) {
+              lowest = min(lowest, value)
+              report(String(format: "contrast appearance=%@ %@ ratio=%.2f", name, label, value))
+            }
+            for (style, value) in styles {
+              let color = EditorPalette.color(for: value)
+              record("\(style)-on-text", ratio(composite(color, over: text), text))
+              record("\(style)-on-managed", ratio(composite(color, over: managed), managed))
+            }
+            record(
+              "line-number-on-ruler",
+              ratio(composite(EditorPalette.lineNumber, over: window), window))
+            report(String(format: "contrast appearance=%@ lowest=%.2f", name, lowest))
+          }
+        }
+      }
+      report("contrast-done")
+    }
+
+    static let measuresMenu = ProcessInfo.processInfo.arguments.contains("--measurement-menu")
+
+    /// Opens the menu bar extra's menu eleven times through its status item button and
+    /// reports the time from the click until the menu's tracking loop first runs, which is
+    /// after the menu window is ordered in. Each menu stays open for 200 ms and must end
+    /// tracking before the next opening. The first opening is cold; the rest are warm.
+    static func measureMenu() async {
+      try? await Task.sleep(for: .seconds(2))
+      guard let button = statusItemButton() else { return report("menu-error=no-status-item") }
+      final class Sample {
+        var start: UInt64 = 0
+        var began: Double = -1
+        var opened: Double = -1
+        var ended = false
+        var items = -1
+      }
+      var opens: [Double] = []
+      var failures = 0
+      for run in 0..<11 {
+        let sample = Sample()
+        let center = NotificationCenter.default
+        let begin = center.addObserver(
+          forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil
+        ) { note in
+          // Posted on the main thread by the menu tracking that `performClick` starts.
+          nonisolated(unsafe) let tracked = note.object as? NSMenu
+          MainActor.assumeIsolated {
+            guard sample.began < 0, let menu = tracked else { return }
+            sample.began = milliseconds(since: sample.start)
+            nonisolated(unsafe) let open = menu
+            RunLoop.main.perform(inModes: [.eventTracking, .default]) {
+              MainActor.assumeIsolated {
+                sample.opened = milliseconds(since: sample.start)
+                sample.items = open.numberOfItems
+              }
+            }
+            let close = Timer(timeInterval: 0.2, repeats: false) { _ in
+              MainActor.assumeIsolated { open.cancelTracking() }
+            }
+            RunLoop.main.add(close, forMode: .common)
+          }
+        }
+        let end = center.addObserver(
+          forName: NSMenu.didEndTrackingNotification, object: nil, queue: nil
+        ) { _ in MainActor.assumeIsolated { sample.ended = true } }
+        sample.start = DispatchTime.now().uptimeNanoseconds
+        button.performClick(nil)
+        for _ in 0..<300 where !sample.ended { try? await Task.sleep(for: .milliseconds(10)) }
+        center.removeObserver(begin)
+        center.removeObserver(end)
+        report(
+          String(
+            format: "menu-open run=%d began-ms=%.1f opened-ms=%.1f items=%d ended=%d", run,
+            sample.began, sample.opened, sample.items, sample.ended ? 1 : 0))
+        if sample.opened < 0 { failures += 1 }
+        if run > 0, sample.opened >= 0 { opens.append(sample.opened) }
+        try? await Task.sleep(for: .seconds(1))
+      }
+      report("menu-warm " + summary(opens) + " failed-openings=\(failures)")
+      report("menu-done")
+    }
+
+    private static func statusItemButton() -> NSStatusBarButton? {
+      func find(_ view: NSView?) -> NSStatusBarButton? {
+        guard let view else { return nil }
+        if let button = view as? NSStatusBarButton { return button }
+        return view.subviews.lazy.compactMap { find($0) }.first
+      }
+      return NSApp.windows.lazy.compactMap { find($0.contentView) }.first
     }
 
     private static let interactiveRoles: Set<String> = [
@@ -734,6 +874,14 @@ struct SystemObservationView: View {
       return (total, interactive, unnamed, roles, named)
     }
 
+    private static func sourceTextView(in view: NSView?) -> NSTextView? {
+      guard let view else { return nil }
+      if let text = view as? NSTextView, text.accessibilityIdentifier() == "profileSource" {
+        return text
+      }
+      return view.subviews.lazy.compactMap { sourceTextView(in: $0) }.first
+    }
+
     private static func profileTextView(in view: NSView?, length: Int) -> NSTextView? {
       guard let view else { return nil }
       if let text = view as? NSTextView, text.accessibilityIdentifier() == "profileSource",
@@ -769,7 +917,7 @@ struct SystemObservationView: View {
         latencies.filter { $0 > 100 }.count)
     }
 
-    private static func report(_ text: String) {
+    nonisolated private static func report(_ text: String) {
       FileHandle.standardError.write(Data("measurement \(text) pid=\(getpid())\n".utf8))
     }
 

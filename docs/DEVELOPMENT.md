@@ -66,7 +66,7 @@ process start time until two main-queue turns after the loaded workspace is publ
 it approximates the first rendered frame. It is not an interaction measurement. Delete the
 temporary workspaces afterwards.
 
-Two further switches exist only in the measurement build:
+Further switches exist only in the measurement build:
 
 - `--measurement-interaction` adds one enabled 10,000-line profile, selects it, and drives
   the real `NSTextView`: 300 typed characters in 15 bursts, a top-to-bottom scroll in
@@ -78,8 +78,14 @@ Two further switches exist only in the measurement build:
   accessibility tree through the AX client API for the main window and the preview,
   add-remote and status sheets. It prints `measurement accessibility-surface=…` counts,
   `accessibility-name` lines with each control's spoken name, `accessibility-unnamed`
-  lines for controls without one, and whether Escape closed each sheet. Add
-  `-AppleLanguages "(de)"` or `"(en)"` to choose the language.
+  lines for controls without one, and whether Escape closed each sheet and returned the
+  first responder to the editor. Add `-AppleLanguages "(de)"` or `"(en)"` to choose the
+  language. Start it with `open -n --stderr <log> <app> --args …` so macOS activates the
+  app; a binary started from a background shell is not activated and focus cannot return.
+- `--measurement-contrast` prints WCAG contrast ratios of the editor colors
+  (`EditorPalette`) on their backgrounds in the light and dark appearance.
+- `--measurement-menu` opens the menu bar extra eleven times through its status item and
+  prints `measurement menu-open` lines and a `menu-warm` summary.
 - `--measurement-observe-system` starts the normal read-only system file observation in
   the private workspace mode, for idle measurements with observation running. It only
   reads the hosts file and its parent directory; nothing is applied or written.
