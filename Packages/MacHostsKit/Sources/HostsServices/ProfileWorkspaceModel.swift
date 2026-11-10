@@ -79,7 +79,7 @@ public final class ProfileWorkspaceModel {
   public var hasUnsavedChanges: Bool { workspace != savedDraft }
   public var hasUnappliedChanges: Bool {
     guard let applied = persisted.snapshot?.applied else { return !workspace.profiles.isEmpty }
-    return workspace != applied.workspace
+    return workspace.withoutRemoteStatus != applied.workspace.withoutRemoteStatus
   }
 
   @discardableResult
@@ -100,6 +100,93 @@ public final class ProfileWorkspaceModel {
   @discardableResult
   public func importWorkspace(_ document: WorkspaceExchangeDocument) -> Bool {
     change { $0 = try document.appending(to: $0) }
+  }
+
+  /// Adds an inactive, empty read-only remote profile. Content arrives only through a
+  /// validated refresh; nothing is downloaded or applied here.
+  @discardableResult
+  public func addRemote(name: String, url: String) -> UUID? {
+    let remote: RemoteSource
+    do { remote = RemoteSource(url: try RemoteSource.validatedURL(url)) } catch {
+      editFailure = .invalidRemoteURL
+      return nil
+    }
+    let profile = Profile(name: name, kind: .remote, remote: remote)
+    return change { $0.profiles.append(profile) } ? profile.id : nil
+  }
+
+  /// A different origin invalidates cached content and validators. The previous
+  /// download never appears under the new URL.
+  public func setRemoteURL(_ id: UUID, url: String) {
+    let validated: URL
+    do { validated = try RemoteSource.validatedURL(url) } catch {
+      editFailure = .invalidRemoteURL
+      return
+    }
+    update(id) {
+      guard $0.kind == .remote, let remote = $0.remote else {
+        throw WorkspaceFailure.invalidRemoteURL
+      }
+      guard remote.url != validated else { return }
+      $0.remote = RemoteSource(url: validated)
+      $0.source = ""
+    }
+  }
+
+  /// Captures the exact origin and cached content a refresh starts from.
+  public func remoteTicket(_ id: UUID) -> RemoteRefreshTicket? {
+    guard let profile = workspace.profiles.first(where: { $0.id == id }),
+      profile.kind == .remote, let remote = profile.remote
+    else { return nil }
+    return RemoteRefreshTicket(
+      profileID: id, request: RemoteFetchRequest(source: remote),
+      cachedDigest: ContentDigest(Data(profile.source.utf8)))
+  }
+
+  /// Applies a download only if the profile still exists with the same origin and cached
+  /// content as when the request started. A stale result is dropped, never merged.
+  /// Valid new content becomes a saved draft; this never writes the system file.
+  @discardableResult
+  public func recordRemote(
+    _ ticket: RemoteRefreshTicket, outcome: RemoteFetchOutcome, at date: Date = Date()
+  ) -> RemoteRefreshRecord {
+    guard let profile = workspace.profiles.first(where: { $0.id == ticket.profileID }),
+      let remote = profile.remote, remote.url == ticket.request.url,
+      ContentDigest(Data(profile.source.utf8)) == ticket.cachedDigest
+    else { return .stale }
+    var record = RemoteRefreshRecord.unchanged
+    let accepted = changeQuietly { draft in
+      guard let index = draft.profiles.firstIndex(where: { $0.id == ticket.profileID }) else {
+        throw WorkspaceFailure.missingProfile
+      }
+      var next = draft.profiles[index]
+      var source = remote
+      source.lastAttempt = date
+      switch outcome {
+      case .content(let text, let tag, let modified):
+        if text != next.source {
+          next.source = text
+          record = .updated
+        }
+        source.entityTag = tag
+        source.lastModified = modified
+        source.lastRefresh = date
+        source.lastFailure = nil
+      case .notModified(let tag, let modified):
+        source.entityTag = tag
+        source.lastModified = modified
+        source.lastRefresh = date
+        source.lastFailure = nil
+      case .failure(let failure):
+        source.lastFailure = failure
+        record = .failed(failure)
+      }
+      next.remote = source
+      guard next.revision < UInt64.max else { throw WorkspaceFailure.revisionOverflow }
+      next.revision += 1
+      draft.profiles[index] = next
+    }
+    return accepted ? record : .rejected
   }
 
   public func rename(_ id: UUID, name: String) {
@@ -266,6 +353,14 @@ public final class ProfileWorkspaceModel {
       profile.revision += 1
       draft.profiles[index] = profile
     }
+  }
+
+  /// Like change, but a rejected refresh never replaces a user-facing edit failure.
+  private func changeQuietly(_ mutation: (inout Workspace) throws -> Void) -> Bool {
+    let previous = editFailure
+    let accepted = change(mutation)
+    if !accepted { editFailure = previous }
+    return accepted
   }
 
   @discardableResult

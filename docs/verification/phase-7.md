@@ -147,3 +147,44 @@ Native panel/selection/sheet sizing, keyboard/VoiceOver, cancellation and multiw
 acceptance remain **unexecuted**, following earlier automation-initialization
 failures. No workstation hosts writes, metadata changes, downloads, privileged
 operation or publication occurred. Gates 0/4/5/7 remain open.
+
+## Remote HTTPS profiles (November 10, 2026)
+
+Implemented, **not yet tested beyond compilation**. The user asked for implementation
+first, with testing in a later pass.
+
+- `RemoteSource` (HostsCore) stores a validated HTTPS URL (host required, no user info,
+  fragments dropped, ≤ 2048 bytes), ETag/Last-Modified validators (printable single
+  line, ≤ 512 bytes), last successful refresh, last attempt and a coarse failure
+  category. Workspace validation requires an origin exactly for remote profiles.
+  Diagnostics/logs name only the host via `redactedOrigin`.
+- Workspace snapshot schema 3 adds the origin. Schemas 1 and 2 migrate with the existing
+  archive-before-publish path; schema-2 intents are carried. Older builds treat schema 3
+  as unsupported/read-only instead of silently dropping origins.
+- `RemoteProfileFetcher` + `URLSessionRemoteTransport`: ephemeral session without
+  cookies, credential storage or URL cache; 30 s request/resource limit; default system
+  TLS evaluation, other auth challenges rejected; at most three redirects, each
+  revalidated (HTTPS, no user info), Authorization/Cookie headers stripped; streaming
+  body bound at 1 MiB with Content-Length precheck; conditional requests. 304 keeps
+  content and known validators. Non-200, non-UTF-8, line-limit, oversize and "no entry
+  but invalid lines" bodies (captive portals/error pages) never replace the cache.
+- `ProfileWorkspaceModel.addRemote/setRemoteURL/remoteTicket/recordRemote`: new remote
+  profiles are inactive and empty until a refresh. Results apply only if the profile
+  still exists with the same URL and cached-content digest captured at request start;
+  otherwise `.stale`. Changing the URL discards cached content and validators. Valid
+  content becomes an autosaved draft; nothing is applied. Remote metadata changes do not
+  count as "not applied" (`Workspace.withoutRemoteStatus`).
+- `RemoteRefreshModel`: at most four concurrent sources, one request per source,
+  optional in-process interval schedule (off/1/6/24 h) sleeping until the next due
+  source (continuous clock; one overdue refresh per source after wake), optional refresh
+  on launch. No background service.
+- UI: toolbar/File menu "New remote profile…" sheet, detail origin/refresh/status section,
+  Profiles menu "Refresh remote profiles" (Shift-Cmd-R), localized failure texts.
+  Duplicate as local profile drops the origin.
+
+Checks run: package build, package test build (`swift build --build-tests`), Debug app
+build, strict formatting. German catalog entries added for all new strings.
+**Not executed:** the 15 new contract tests in `RemoteProfileTests.swift`, the full
+package suite, Release build/signature check, local URLSession server tests (timeout,
+redirect chains, TLS errors, oversize streaming, cancellation) and a real public HTTPS
+request. SwitchHosts import and replacement imports remain open. Gate 7 remains open.

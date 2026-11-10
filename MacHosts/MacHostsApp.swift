@@ -9,6 +9,7 @@ import SwiftUI
 struct MacHostsApp: App {
   @State private var model = AppModel()
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+  @AppStorage(AppSettings.showsMenuBarExtra) private var showsMenuBarExtra = true
 
   init() {
     guard geteuid() != 0 else { exit(64) }
@@ -29,8 +30,41 @@ struct MacHostsApp: App {
     .defaultSize(width: 1050, height: 740)
     .commands {
       WorkspaceCommands()
+      CommandGroup(after: .help) {
+        DiagnosticsCommand()
+      }
+    }
+
+    // The menu bar shares the app model; closing every window keeps it available.
+    MenuBarExtra("MacHosts", systemImage: "network", isInserted: $showsMenuBarExtra) {
+      MenuBarContent(model: model)
+    }
+    .menuBarExtraStyle(.menu)
+
+    Window("Diagnostics", id: "diagnostics") {
+      DiagnosticsView(model: model)
+    }
+    .defaultSize(width: 640, height: 560)
+
+    Settings {
+      SettingsView(model: model)
     }
   }
+}
+
+private struct DiagnosticsCommand: View {
+  @Environment(\.openWindow) private var openWindow
+  var body: some View {
+    Button("Diagnostics") { openWindow(id: "diagnostics") }
+  }
+}
+
+/// UserDefaults keys for small UI preferences only; workspace data never lives here.
+enum AppSettings {
+  static let showsMenuBarExtra = "showsMenuBarExtra"
+  static let refreshRemoteOnLaunch = "refreshRemoteOnLaunch"
+  /// Hours between in-process refreshes; 0 disables interval refresh.
+  static let remoteRefreshHours = "remoteRefreshHours"
 }
 
 /// Commands follow the active window and are unavailable while its sheets are open.
@@ -45,6 +79,9 @@ struct WorkspaceCommandActions {
   let delete: () -> Void
   let move: (Int) -> Void
   let newProfile: () -> Void
+  let newRemoteProfile: () -> Void
+  let refreshRemote: () -> Void
+  let canRefreshRemote: Bool
   let save: () -> Void
   let search: () -> Void
   let find: (Bool) -> Void
@@ -77,6 +114,8 @@ private struct WorkspaceCommands: Commands {
       Button("New profile") { actions?.newProfile() }
         .keyboardShortcut("n")
         .disabled(actions?.canEdit != true)
+      Button("New remote profile…") { actions?.newRemoteProfile() }
+        .disabled(actions?.canEdit != true)
       Button("Import / Export…") { actions?.exchange() }
         .disabled(actions == nil)
       Button("Save drafts") { actions?.save() }
@@ -107,6 +146,9 @@ private struct WorkspaceCommands: Commands {
       Button("Preview changes") { actions?.preview() }
         .keyboardShortcut("p", modifiers: [.command, .shift])
         .disabled(actions?.canEdit != true)
+      Button("Refresh remote profiles") { actions?.refreshRemote() }
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+        .disabled(actions?.canRefreshRemote != true)
       Button("Folders") { actions?.folders() }
         .disabled(actions?.canEdit != true)
       Button("Trash") { actions?.trash() }
@@ -148,8 +190,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 /// observation or release the workspace's process lock.
 @MainActor @Observable
 final class AppModel {
+  struct WindowRequest: Equatable {
+    enum Kind: Equatable {
+      case preview, addRemote, status
+      case select(UUID)
+    }
+    let id = UUID()
+    let kind: Kind
+  }
+
   var editor: ProfileWorkspaceModel?
   let system = SystemObservationModel()
+  let remote = RemoteRefreshModel()
+  /// Set by the menu bar; the first workspace window that sees it consumes it.
+  var windowRequest: WindowRequest?
+  private var scheduleTask: Task<Void, Never>?
   #if DEBUG
     let isPrivateTest = ProcessInfo.processInfo.arguments.contains("--ui-testing-local-workspace")
   #else
@@ -183,8 +238,15 @@ final class AppModel {
         opened = try await WorkspaceStore.openDefault()
       #endif
       store = opened
-      editor = try await ProfileWorkspaceModel.open(store: opened)
+      let editor = try await ProfileWorkspaceModel.open(store: opened)
+      self.editor = editor
       system.updateWorkspace(await opened.state())
+      if !isPrivateTest {
+        if UserDefaults.standard.bool(forKey: AppSettings.refreshRemoteOnLaunch) {
+          remote.refreshAll(editor: editor)
+        }
+        updateRemoteSchedule()
+      }
     } catch {
       system.updateWorkspace(nil)
     }
@@ -199,6 +261,22 @@ final class AppModel {
       }
       await system.refresh()
     }
+  }
+
+  /// Restarts the in-process interval refresh after a settings change. No timer runs
+  /// when interval refresh is off or no workspace is open.
+  func updateRemoteSchedule() {
+    scheduleTask?.cancel()
+    scheduleTask = nil
+    let hours = UserDefaults.standard.integer(forKey: AppSettings.remoteRefreshHours)
+    guard hours > 0, let editor, !isPrivateTest else { return }
+    scheduleTask = Task { [remote] in
+      await remote.runSchedule(editor: editor, interval: TimeInterval(hours) * 3_600)
+    }
+  }
+
+  func request(_ kind: WindowRequest.Kind) {
+    windowRequest = WindowRequest(kind: kind)
   }
 
   func restartObservation() {

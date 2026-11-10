@@ -2,7 +2,8 @@ import Foundation
 import HostsCore
 
 public struct WorkspaceSnapshot: Codable, Equatable, Sendable {
-  public static let currentSchema = 2
+  /// Schema 3 adds remote origins. Older builds must open it read-only rather than drop them.
+  public static let currentSchema = 3
   public let schemaVersion: Int
   public let generation: UInt64
   public let draft: Workspace
@@ -90,6 +91,7 @@ public actor WorkspaceStore {
     let generation: UInt64
     let draft: Workspace
     let applied: AppliedWorkspaceSnapshot?
+    let pendingApply: PendingApply?
   }
 
   private static func decode(_ data: Data) throws -> WorkspaceSnapshot {
@@ -142,11 +144,13 @@ public actor WorkspaceStore {
     do {
       let header = try JSONDecoder().decode(SchemaHeader.self, from: bytes)
       let snapshot: WorkspaceSnapshot
-      if header.schemaVersion == 1 {
+      if header.schemaVersion == 1 || header.schemaVersion == 2 {
         let legacy = try JSONDecoder().decode(LegacySnapshot.self, from: bytes)
         guard legacy.generation < UInt64.max else { throw WorkspaceStoreFailure.generationOverflow }
+        // Schema 1 had no intents; schema 2 intents are carried unchanged.
         snapshot = WorkspaceSnapshot(
-          generation: legacy.generation + 1, draft: legacy.draft, applied: legacy.applied)
+          generation: legacy.generation + 1, draft: legacy.draft, applied: legacy.applied,
+          pendingApply: header.schemaVersion == 2 ? legacy.pendingApply : nil)
         let migrated = try snapshot.encoded()
         // Archive the exact old schema before publishing. A failed migration never starts empty.
         migrating = true

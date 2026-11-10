@@ -12,6 +12,7 @@ struct ProfileWorkspaceView: View {
   @State private var showsWorkspaceRecovery = false
   @State private var showsStatus = false
   @State private var showsFolders = false
+  @State private var showsAddRemote = false
   @State private var query = ""
   @State private var searchResult = ProfileSearchResult(hits: [], isTruncated: false)
   @State private var search = ProfileSearch()
@@ -83,6 +84,11 @@ struct ProfileWorkspaceView: View {
         }
         .disabled(model.editor?.isReadOnly != false)
         .accessibilityIdentifier("newProfile")
+        Button("New remote profile…", systemImage: "icloud.and.arrow.down") {
+          showsAddRemote = true
+        }
+        .disabled(model.editor?.isReadOnly != false)
+        .accessibilityIdentifier("newRemoteProfile")
         Button("Import / Export…", systemImage: "square.and.arrow.up.on.square") {
           showsExchange = true
         }
@@ -104,7 +110,8 @@ struct ProfileWorkspaceView: View {
           let profile = editor.workspace.profiles.first(where: { $0.id == selection })
         {
           ProfileDetailView(
-            editor: editor, profile: profile, jump: jump, findRequest: findRequest,
+            editor: editor, remote: model.remote, profile: profile, jump: jump,
+            findRequest: findRequest,
             selectProfile: { selection = $0 }
           ) { jump = $0 }
           .id(profile.id)
@@ -125,7 +132,7 @@ struct ProfileWorkspaceView: View {
     .focusedSceneValue(
       \.workspaceCommands,
       showsExchange || showsPreview || showsTrash || showsWorkspaceRecovery || showsStatus
-        || showsFolders
+        || showsFolders || showsAddRemote
         ? nil : commandActions
     )
     .task(id: SearchRequest(query: query, revision: model.editor?.workspace.revision)) {
@@ -149,6 +156,19 @@ struct ProfileWorkspaceView: View {
         }
       }
     }
+    .sheet(isPresented: $showsAddRemote) {
+      if let editor = model.editor {
+        AddRemoteProfileView(editor: editor, remote: model.remote) { id in
+          query = ""
+          selection = id
+          showsAddRemote = false
+        } cancel: {
+          showsAddRemote = false
+        }
+      }
+    }
+    .onChange(of: model.windowRequest) { _, request in handle(request) }
+    .onAppear { handle(model.windowRequest) }
     .sheet(isPresented: $showsFolders) {
       if let editor = model.editor { FolderManagerView(editor: editor) }
     }
@@ -194,6 +214,20 @@ struct ProfileWorkspaceView: View {
     }
   }
 
+  /// Menu bar requests are consumed by exactly one workspace window.
+  private func handle(_ request: AppModel.WindowRequest?) {
+    guard let request, model.windowRequest == request else { return }
+    model.windowRequest = nil
+    switch request.kind {
+    case .preview: showsPreview = true
+    case .addRemote: showsAddRemote = true
+    case .status: showsStatus = true
+    case .select(let id):
+      query = ""
+      selection = id
+    }
+  }
+
   private func newProfile() {
     guard let id = model.editor?.create(name: String(localized: "New profile")) else { return }
     selection = id
@@ -223,6 +257,12 @@ struct ProfileWorkspaceView: View {
         model.editor?.move(profile.id, by: offset)
       },
       newProfile: newProfile,
+      newRemoteProfile: { showsAddRemote = true },
+      refreshRemote: {
+        if let editor = model.editor { model.remote.refreshAll(editor: editor) }
+      },
+      canRefreshRemote: model.editor?.isReadOnly == false
+        && model.editor?.workspace.profiles.contains { $0.kind == .remote } == true,
       save: { Task { _ = await model.editor?.flush() } },
       search: { searchFocused = true },
       find: { replace in
@@ -438,6 +478,7 @@ private struct TrashReviewView: View {
 
 private struct ProfileDetailView: View {
   let editor: ProfileWorkspaceModel
+  let remote: RemoteRefreshModel
   let profile: Profile
   let jump: ProfileEditorJump?
   let findRequest: ProfileEditorFindRequest?
@@ -497,7 +538,9 @@ private struct ProfileDetailView: View {
         .accessibilityIdentifier("profileActions")
       }
       .disabled(editor.isReadOnly)
-      if profile.kind == .remote { Text("Remote content is read-only.") }
+      if let source = profile.remote {
+        RemoteSourceSection(editor: editor, remote: remote, profile: profile, source: source)
+      }
       NativeProfileEditor(
         source: profile.source, isEditable: !editor.isReadOnly && profile.kind == .local,
         jump: jump?.profileID == profile.id ? jump : nil,
@@ -641,6 +684,8 @@ private func editFailureText(_ failure: WorkspaceFailure) -> String {
   case .invalidFolder:
     String(localized: "Choose a valid folder hierarchy (up to 16 levels, without cycles).")
   case .readOnlyProfile: String(localized: "Remote content is read-only.")
+  case .invalidRemoteURL:
+    String(localized: "Enter an HTTPS address without user name or password.")
   case .staleRevision:
     String(localized: "The profile changed. Retry the action on the current text.")
   default: String(localized: "The change could not be accepted. The previous draft was preserved.")

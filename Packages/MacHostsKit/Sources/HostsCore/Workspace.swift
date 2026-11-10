@@ -32,10 +32,13 @@ public struct Profile: Identifiable, Codable, Equatable, Sendable {
   public var source: String
   public var isEnabled: Bool
   public var revision: UInt64
+  /// Present exactly for remote profiles; local copies never carry an origin URL.
+  public var remote: RemoteSource?
 
   public init(
     id: UUID = UUID(), name: String, folderID: UUID? = nil, kind: Kind = .local,
-    source: String = "", isEnabled: Bool = false, revision: UInt64 = 0
+    source: String = "", isEnabled: Bool = false, revision: UInt64 = 0,
+    remote: RemoteSource? = nil
   ) {
     self.id = id
     self.name = name
@@ -44,6 +47,16 @@ public struct Profile: Identifiable, Codable, Equatable, Sendable {
     self.source = source
     self.isEnabled = isEnabled
     self.revision = revision
+    self.remote = remote
+  }
+
+  /// Equal for everything that composes system output or is edited by the user.
+  /// Refresh timestamps and cache validators are status, not unapplied content.
+  public var withoutRemoteStatus: Profile {
+    var copy = self
+    copy.remote = remote.map { RemoteSource(url: $0.url) }
+    copy.revision = 0
+    return copy
   }
 
   /// Requires the digest used to render the editor's line controls, even if a caller forgot to bump revision.
@@ -141,6 +154,7 @@ public struct TrashedProfile: Codable, Equatable, Sendable {
 public enum WorkspaceFailure: Error, Equatable, Sendable {
   case unsupportedSchema, staleRevision, revisionOverflow, limitExceeded, duplicateID
   case invalidFolder, invalidName, missingProfile, readOnlyProfile, notAnEntry
+  case invalidRemoteURL
 }
 
 public struct Workspace: Codable, Equatable, Sendable {
@@ -176,6 +190,11 @@ public struct Workspace: Codable, Equatable, Sendable {
       guard profile.source.utf8.count <= HostsLimits.profileBytes else {
         throw WorkspaceFailure.limitExceeded
       }
+      switch (profile.kind, profile.remote) {
+      case (.local, nil): break
+      case (.remote, let remote?): try remote.validate()
+      default: throw WorkspaceFailure.invalidRemoteURL
+      }
     }
     for profile in profiles {
       if let id = profile.folderID, !folderIDs.contains(id) { throw WorkspaceFailure.invalidFolder }
@@ -194,6 +213,15 @@ public struct Workspace: Codable, Equatable, Sendable {
         parent = parents[id] ?? nil
       }
     }
+  }
+
+  /// Workspace equality without refresh timestamps/validators, for "not applied" status.
+  public var withoutRemoteStatus: Workspace {
+    var copy = self
+    copy.profiles = profiles.map(\.withoutRemoteStatus)
+    copy.trash = []
+    copy.revision = 0
+    return copy
   }
 
   public static func validName(_ name: String) -> Bool {

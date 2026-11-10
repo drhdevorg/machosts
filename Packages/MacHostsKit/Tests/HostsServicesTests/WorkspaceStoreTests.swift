@@ -372,7 +372,7 @@ func interruptionPreservesConfirmedData(_ point: WorkspaceWritePoint) async thro
   do {
     let store = try await WorkspaceStore.open(directory: fixture.directory)
     let migrated = try #require(await store.state().snapshot)
-    #expect(migrated.schemaVersion == 2 && migrated.generation == 8)
+    #expect(migrated.schemaVersion == WorkspaceSnapshot.currentSchema && migrated.generation == 8)
     #expect(migrated.draft == desired)
     #expect(migrated.applied?.receipt == receipt)
     #expect(migrated.pendingApply == nil)
