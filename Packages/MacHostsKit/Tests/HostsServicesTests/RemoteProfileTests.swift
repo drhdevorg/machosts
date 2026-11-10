@@ -15,6 +15,9 @@ private struct RemoteFixture {
   }
 }
 
+/// Valid origin for fixtures that need a remote profile without exercising refresh.
+let testRemoteOrigin = RemoteSource(url: URL(string: "https://example.com/hosts")!)
+
 /// Deterministic transport; records the request it received. No network access.
 private final class StubTransport: RemoteTransport {
   let response: @Sendable (URLRequest) throws -> (Int, [String: String], Data)
@@ -116,22 +119,24 @@ func remoteURLValidationRejectsUnsafeOrigins(_ text: String) {
 @Test @MainActor func remoteRefreshStoresValidContentAsInactiveDraftOnly() async throws {
   let fixture = RemoteFixture()
   defer { fixture.cleanup() }
-  let store = try await WorkspaceStore.open(directory: fixture.directory)
-  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
-  let id = try #require(model.addRemote(name: "Blocklist", url: "https://example.com/hosts"))
-  #expect(model.workspace.profiles[0].kind == .remote && !model.workspace.profiles[0].isEnabled)
-  let ticket = try #require(model.remoteTicket(id))
-  let date = Date(timeIntervalSince1970: 1_800_000_000)
-  let record = model.recordRemote(
-    ticket,
-    outcome: .content(source: "192.0.2.9 a.example\n", entityTag: "\"1\"", lastModified: nil),
-    at: date)
-  #expect(record == .updated)
-  let profile = model.workspace.profiles[0]
-  #expect(profile.source == "192.0.2.9 a.example\n" && !profile.isEnabled)
-  #expect(profile.remote?.lastRefresh == date && profile.remote?.entityTag == "\"1\"")
-  #expect(model.persisted.snapshot?.applied == nil)
-  #expect(await model.flush())
+  do {
+    let store = try await WorkspaceStore.open(directory: fixture.directory)
+    let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+    let id = try #require(model.addRemote(name: "Blocklist", url: "https://example.com/hosts"))
+    #expect(model.workspace.profiles[0].kind == .remote && !model.workspace.profiles[0].isEnabled)
+    let ticket = try #require(model.remoteTicket(id))
+    let date = Date(timeIntervalSince1970: 1_800_000_000)
+    let record = model.recordRemote(
+      ticket,
+      outcome: .content(source: "192.0.2.9 a.example\n", entityTag: "\"1\"", lastModified: nil),
+      at: date)
+    #expect(record == .updated)
+    let profile = model.workspace.profiles[0]
+    #expect(profile.source == "192.0.2.9 a.example\n" && !profile.isEnabled)
+    #expect(profile.remote?.lastRefresh == date && profile.remote?.entityTag == "\"1\"")
+    #expect(model.persisted.snapshot?.applied == nil)
+    #expect(await model.flush())
+  }
   let reopened = try await WorkspaceStore.open(directory: fixture.directory)
   #expect(await reopened.state().snapshot?.draft.profiles[0].remote?.entityTag == "\"1\"")
 }

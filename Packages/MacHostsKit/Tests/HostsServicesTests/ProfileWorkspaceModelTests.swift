@@ -97,7 +97,9 @@ private struct EditorFixture {
     Workspace(
       revision: 1,
       profiles: [
-        Profile(name: "Remote", kind: .remote, source: "192.0.2.1 remote.example", isEnabled: true)
+        Profile(
+          name: "Remote", kind: .remote, source: "192.0.2.1 remote.example", isEnabled: true,
+          remote: testRemoteOrigin)
       ]), expectedGeneration: 0)
   let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
   let remote = model.workspace.profiles[0]
@@ -304,7 +306,8 @@ private final class EditorSaveFault: Sendable {
   let local = Profile(
     name: "Local", source: "# 😀 café\r\n\r\n192.0.2.1 SHOP.example\r# [a.*] literal\n")
   let remote = Profile(
-    name: "Shop remote", kind: .remote, source: "# shop.example\n", isEnabled: true)
+    name: "Shop remote", kind: .remote, source: "# shop.example\n", isEnabled: true,
+    remote: testRemoteOrigin)
   let trashed = Profile(name: "Shop trash", source: "shop.example")
   let workspace = Workspace(
     profiles: [local, remote],
@@ -457,7 +460,8 @@ private final class EditorSaveFault: Sendable {
   let source = "# café 🐈\r\n192.0.2.8 trash.example\r\ninvalid draft\r\n"
   let folder = ProfileFolder(name: "Former folder")
   let profile = Profile(
-    name: "Remote archive", folderID: folder.id, kind: .remote, source: source, isEnabled: true)
+    name: "Remote archive", folderID: folder.id, kind: .remote, source: source, isEnabled: true,
+    remote: testRemoteOrigin)
   do {
     let store = try await WorkspaceStore.open(directory: fixture.directory)
     _ = try await store.saveDraft(

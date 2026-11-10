@@ -150,8 +150,7 @@ operation or publication occurred. Gates 0/4/5/7 remain open.
 
 ## Remote HTTPS profiles (November 10, 2026)
 
-Implemented, **not yet tested beyond compilation**. The user asked for implementation
-first, with testing in a later pass.
+Implemented, then verified in a follow-up pass the same day (see Checks below).
 
 - `RemoteSource` (HostsCore) stores a validated HTTPS URL (host required, no user info,
   fragments dropped, ≤ 2048 bytes), ETag/Last-Modified validators (printable single
@@ -182,9 +181,21 @@ first, with testing in a later pass.
   Profiles menu "Refresh remote profiles" (Shift-Cmd-R), localized failure texts.
   Duplicate as local profile drops the origin.
 
-Checks run: package build, package test build (`swift build --build-tests`), Debug app
-build, strict formatting. German catalog entries added for all new strings.
-**Not executed:** the 15 new contract tests in `RemoteProfileTests.swift`, the full
-package suite, Release build/signature check, local URLSession server tests (timeout,
-redirect chains, TLS errors, oversize streaming, cancellation) and a real public HTTPS
-request. SwitchHosts import and replacement imports remain open. Gate 7 remains open.
+Checks run:
+
+- `swift test --package-path Packages/MacHostsKit`: **164 tests passed** (30 System,
+  122 Services, 12 Core), including the 15 new tests in `RemoteProfileTests.swift`
+  (URL/validator rules, stubbed 200/304/error/encoding/captive-portal/oversize
+  outcomes, error categories, inactive draft-only refresh with persistence, failed
+  refresh keeping content, stale/deleted results dropped, URL change discarding cache,
+  read-only/local duplication, metadata not counting as unapplied, schedule selection,
+  report redaction). The first run exposed three older fixtures with remote profiles
+  lacking an origin (now rejected by validation) and a new test reopening a still-locked
+  store; fixtures were corrected, no production change was needed.
+- Release build, Debug build-for-testing (UI suite compiles), strict formatting and
+  `git diff --check` passed. Release app and embedded `MacHostsApply` verify deep/strict
+  with `adhoc,runtime` flags. German catalog entries exist for all new strings.
+
+**Not executed:** local URLSession server tests (timeout, real redirect chains, TLS
+errors, streamed oversize, cancellation), a real public HTTPS request, and native UI
+acceptance. SwitchHosts import and replacement imports remain open. Gate 7 remains open.

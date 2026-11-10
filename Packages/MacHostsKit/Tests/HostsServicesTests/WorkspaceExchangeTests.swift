@@ -10,7 +10,7 @@ import Testing
   let source = "# café 😀\r\n192.0.2.1 example.test\r\ninvalid draft"
   let profile = Profile(
     name: "Same name", folderID: child.id, kind: .remote,
-    source: source, isEnabled: true, revision: 99)
+    source: source, isEnabled: true, revision: 99, remote: testRemoteOrigin)
   let original = Workspace(
     revision: 50, profiles: [profile], folders: [root, child],
     trash: [.init(profile: Profile(name: "Deleted secret", source: "# omitted"), formerIndex: 0)])

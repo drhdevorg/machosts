@@ -1,7 +1,7 @@
 # Phase 6 – Menu bar, login start, diagnostics (partial)
 
-November 10, 2026. Independent work under ADR 0002. **Gate 6 is open.** Implemented,
-**not yet tested beyond compilation**; testing was deferred at the user's request.
+November 10, 2026. Independent work under ADR 0002. **Gate 6 is open.** Implemented;
+package tests and builds verified the same day. Native behavior is not yet tested.
 
 ## Implemented behavior
 
@@ -26,8 +26,9 @@ November 10, 2026. Independent work under ADR 0002. **Gate 6 is open.** Implemen
 
 ## Verification
 
-Debug app build and strict formatting passed. One contract test for report redaction is
-in `RemoteProfileTests.swift` (compiled, not executed).
+Full 164-test package run (including the report-redaction contract test), Release build
+with deep/strict ad-hoc+runtime signature verification, Debug build-for-testing and strict
+formatting passed. The menu bar, Settings and Diagnostics UI were not exercised natively.
 
 **Open:** native menu/window lifecycle acceptance, login item behavior in an account-free
 ad-hoc build (move/update/OS disable), sleep/wake, external-change display in the menu,
