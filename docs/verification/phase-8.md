@@ -3,8 +3,9 @@
 November 10, 2026. Independent local work under ADR 0002. **Gate 8 is open.** This
 report covers the package benchmark and parser speedups, native launch, idle and memory
 measurements with a private measurement build, and in-process typing and scrolling
-measurements with the editor fixes they led to. Warm menu, real input latency,
-accessibility and the user guide remain open (see "Not done").
+measurements with the editor fixes they led to, an accessibility tree audit and the user
+guide. Warm menu, real input latency, VoiceOver listening tests and full keyboard checks
+remain open (see "Not done").
 
 ## Benchmark
 
@@ -189,6 +190,63 @@ footprint at the end. `lsof` showed the process holding `/private/etc` and
 shows no periodic networking from observation; the shipping app's opt-in remote schedule
 is not covered.
 
+## Accessibility tree audit (measurement build)
+
+`--measurement-accessibility` walks the app's accessibility tree through the public AX
+client API (`AXUIElementCreateApplication` on the app's own process ID), the same tree
+VoiceOver reads. In-process queries need no Accessibility permission
+(`AXIsProcessTrusted()` was false). AppKit's own `accessibilityChildren` returned only
+eight elements, because SwiftUI builds its accessibility nodes only once an assistive
+client asks. The walk therefore repeats until the element count is stable twice in a
+row, with 500 ms between walks.
+
+Surfaces: the main window with the first of the 100 seeded profiles selected, and the
+preview, add-remote and status sheets, opened through the normal window requests. An
+interactive element (button, check box, pop-up, menu button, text field, text area,
+disclosure, link, row) counts as unnamed when it has no title, description, placeholder
+or title element, and no descendant text within four levels. Window and scroll bar
+controls are named by the system through their subrole and are excluded. Each sheet is
+then closed with a synthesized Escape key event.
+
+| Language | Surface | Elements | Interactive | Unnamed | Esc closes |
+| --- | --- | ---: | ---: | ---: | --- |
+| English | main | 496 | 136 | 0 | – |
+| English | preview | 506 | 139 | 0 | yes |
+| English | add remote | 504 | 140 | 0 | yes |
+| English | status | 504 | 139 | 0 | yes |
+| German | main | 496 | 136 | 0 | – |
+| German | preview | 506 | 139 | 0 | yes |
+| German | add remote | 504 | 140 | 0 | yes |
+| German | status | 503 | 139 | 0 | yes |
+
+The 136 interactive elements are 111 sidebar rows, 17 buttons, 2 text fields, 2 pop-ups,
+a menu button, a check box, the editor text area and the entry-switch disclosure. Spoken
+names were listed and reviewed in both languages, for example "Search all profiles" /
+"Alle Profile durchsuchen", "Desired active" / "Gewünscht aktiv", "Profile source" /
+"Profilquelltext". Each sheet adds its own named controls (for example "HTTPS address",
+"Add and download", "Cancel"). At the default window width, Import/Export, Folders,
+Search and Trash sit in the toolbar's named overflow menu; the File and Profiles menus
+also offer them.
+
+The first, AppKit-only walk flagged the window buttons and scroll arrows. A second walk
+with the AX client flagged 111 rows that are named by their cell text. Both were false
+positives of the rule and were excluded as described above. No code change was needed.
+
+Limit: after Escape the main window was not key (`main-key=false`, first responder the
+window), because macOS did not activate an app started from a background shell. Focus
+return after sheets therefore remains unverified. The app contains no custom animations
+(no `withAnimation`, `.animation` or transitions), so Reduce Motion has nothing extra to
+suppress. Contrast and Reduce Transparency were not measured.
+
+## User guide
+
+[`docs/USER-GUIDE.md`](../USER-GUIDE.md) covers first launch, profiles and the editor,
+activation, preview and conflicts, system status and external changes, remote profiles,
+import/export and backups, menu bar and settings, TLS and resolver limits, storage,
+migration and recovery, complete removal, shortcuts and limits. It states at the top that
+this build cannot change the system file. File names, limits, redirect rules,
+diagnostics content and labels were checked against the code.
+
 ## Not done
 
 - A prefilter that skipped per-line search was measured and reverted: Foundation's
@@ -198,6 +256,8 @@ is not covered.
 - Warm menu ≤ 150 ms and real input latency (keyboard events through the window server)
   are unmeasured: they need UI automation, which is still blocked by Accessibility
   authorization. Typing and scrolling were measured in-process only (see above). Idle
-  networking with an enabled remote schedule is not measured. VoiceOver, keyboard,
-  contrast and motion checks, the failure-matrix rerun and `docs/USER-GUIDE.md` remain
-  open.
+  networking with an enabled remote schedule is not measured. Listening tests with
+  VoiceOver, full keyboard navigation, focus return after sheets, contrast and Reduce
+  Transparency, and the failure-matrix rerun remain open. The accessibility audit above
+  checks names and Escape only. The user guide documents the planned apply and removal
+  flows as not yet available; it must be updated when the system writer lands.

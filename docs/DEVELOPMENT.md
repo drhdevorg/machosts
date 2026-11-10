@@ -74,6 +74,12 @@ Two further switches exist only in the measurement build:
   `-jump` lines with per-event synchronous times and the longest main-thread stalls, which
   a background timer detects by enqueueing a main-queue block every 5 ms. Edits go through
   the normal model and autosave into the temporary workspace only.
+- `--measurement-accessibility` selects the first profile, then walks the app's
+  accessibility tree through the AX client API for the main window and the preview,
+  add-remote and status sheets. It prints `measurement accessibility-surface=…` counts,
+  `accessibility-name` lines with each control's spoken name, `accessibility-unnamed`
+  lines for controls without one, and whether Escape closed each sheet. Add
+  `-AppleLanguages "(de)"` or `"(en)"` to choose the language.
 - `--measurement-observe-system` starts the normal read-only system file observation in
   the private workspace mode, for idle measurements with observation running. It only
   reads the hosts file and its parent directory; nothing is applied or written.

@@ -254,6 +254,9 @@ final class AppModel {
           if LaunchMeasurement.measuresInteraction {
             Task { await LaunchMeasurement.measureInteraction(app: self, editor: editor) }
           }
+          if LaunchMeasurement.auditsAccessibility {
+            Task { await LaunchMeasurement.auditAccessibility(app: self, editor: editor) }
+          }
         }
       #endif
       system.updateWorkspace(await opened.state())
@@ -576,6 +579,159 @@ struct SystemObservationView: View {
           + stallSummary(scrollStalls))
       report("interaction-jump " + summary(jumps) + " " + stallSummary(jumpStalls))
       report("interaction-done")
+    }
+
+    static let auditsAccessibility = ProcessInfo.processInfo.arguments.contains(
+      "--measurement-accessibility")
+
+    /// Walks the app's own accessibility tree (the tree VoiceOver reads; no Accessibility
+    /// permission is needed in-process) for the main window and the preview, add-remote and
+    /// status sheets, and reports interactive elements without a spoken name. Each sheet is
+    /// dismissed with a synthesized Escape key, which must close it and return key focus to
+    /// the main window.
+    static func auditAccessibility(app: AppModel, editor: ProfileWorkspaceModel) async {
+      try? await Task.sleep(for: .seconds(2))
+      NSApp.activate()
+      if let first = editor.workspace.profiles.first { app.request(.select(first.id)) }
+      try? await Task.sleep(for: .seconds(1))
+      guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil })
+      else { return report("accessibility-error=no-window") }
+      await auditTree(of: window, surface: "main")
+      for (name, kind) in [
+        ("preview", AppModel.WindowRequest.Kind.preview), ("add-remote", .addRemote),
+        ("status", .status),
+      ] {
+        app.request(kind)
+        var sheet: NSWindow?
+        for _ in 0..<200 {
+          sheet = window.attachedSheet
+          if sheet != nil { break }
+          try? await Task.sleep(for: .milliseconds(25))
+        }
+        guard let sheet else {
+          report("accessibility-surface=\(name) error=no-sheet")
+          continue
+        }
+        try? await Task.sleep(for: .seconds(1))
+        await auditTree(of: sheet, surface: name)
+        let escape = NSEvent.keyEvent(
+          with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+          windowNumber: sheet.windowNumber, context: nil, characters: "\u{1b}",
+          charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)
+        if let escape { NSApp.sendEvent(escape) }
+        var closed = false
+        for _ in 0..<200 {
+          closed = window.attachedSheet == nil
+          if closed { break }
+          try? await Task.sleep(for: .milliseconds(25))
+        }
+        try? await Task.sleep(for: .milliseconds(300))
+        report(
+          "accessibility-surface=\(name) escape-closes=\(closed)"
+            + " main-key=\(window.isKeyWindow) first-responder=\(window.firstResponder.map { String(describing: type(of: $0)) } ?? "none")"
+        )
+        if !closed { sheet.sheetParent?.endSheet(sheet) }
+      }
+      report("accessibility-done")
+    }
+
+    private static let interactiveRoles: Set<String> = [
+      "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton", "AXTextField",
+      "AXTextArea", "AXSlider", "AXComboBox", "AXDisclosureTriangle", "AXLink", "AXIncrementor",
+      "AXRow",
+    ]
+
+    private static let systemSubroles: Set<String> = [
+      "AXCloseButton", "AXMinimizeButton", "AXZoomButton", "AXFullScreenButton",
+      "AXIncrementArrow", "AXDecrementArrow", "AXIncrementPage", "AXDecrementPage",
+    ]
+
+    private static func hasDescendantText(_ element: AXUIElement, depth: Int = 0) -> Bool {
+      guard depth < 4 else { return false }
+      for child in attribute(element, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
+        let texts = [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute].compactMap {
+          attribute(child, $0) as? String
+        }
+        if texts.contains(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+          return true
+        }
+        if hasDescendantText(child, depth: depth + 1) { return true }
+      }
+      return false
+    }
+
+    private static func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
+      var value: CFTypeRef?
+      return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success
+        ? value : nil
+    }
+
+    /// Walks the tree through the public AX client API against this process, which is what
+    /// VoiceOver reads. The first query enables SwiftUI's accessibility tree, so the walk
+    /// repeats until the element count stops changing.
+    private static func auditTree(of window: NSWindow, surface: String) async {
+      let application = AXUIElementCreateApplication(getpid())
+      var previous = -1
+      var stable = 0
+      for _ in 0..<20 where stable < 2 {
+        let count = walk(application).total
+        stable = count == previous ? stable + 1 : 0
+        previous = count
+        try? await Task.sleep(for: .milliseconds(500))
+      }
+      let result = walk(application)
+      let roleList = result.roles.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+        .joined(separator: ",")
+      report(
+        "accessibility-surface=\(surface) elements=\(result.total)"
+          + " interactive=\(result.interactive) unnamed=\(result.unnamed.count) roles=\(roleList)")
+      for item in result.unnamed { report("accessibility-unnamed surface=\(surface) \(item)") }
+      for item in result.named { report("accessibility-name surface=\(surface) \(item)") }
+    }
+
+    private static func walk(_ application: AXUIElement) -> (
+      total: Int, interactive: Int, unnamed: [String], roles: [String: Int], named: [String]
+    ) {
+      var total = 0
+      var interactive = 0
+      var unnamed: [String] = []
+      var roles: [String: Int] = [:]
+      var named: [String] = []
+      func visit(_ element: AXUIElement, depth: Int, path: String) {
+        guard depth < 80 else { return }
+        let role = attribute(element, kAXRoleAttribute) as? String ?? "?"
+        if role == kAXMenuBarRole as String { return }
+        total += 1
+        let subrole = attribute(element, kAXSubroleAttribute) as? String ?? ""
+        if interactiveRoles.contains(role) {
+          interactive += 1
+          roles[role, default: 0] += 1
+          let names = [
+            kAXTitleAttribute, kAXDescriptionAttribute, kAXPlaceholderValueAttribute,
+          ].compactMap { attribute(element, $0) as? String }
+          let hasTitleElement = attribute(element, kAXTitleUIElementAttribute) != nil
+          // Rows are named by their cell contents; buttons may carry their name in a child.
+          // Window and scroll bar controls are named by the system through their subrole.
+          if role != "AXRow", !systemSubroles.contains(subrole) {
+            let spoken =
+              names.first { !$0.isEmpty } ?? (hasTitleElement ? "<title element>" : "<child text>")
+            named.append("\(role)/\(subrole) \"\(spoken)\"")
+          }
+          if !hasTitleElement, !systemSubroles.contains(subrole), !hasDescendantText(element),
+            names.allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty })
+          {
+            let identifier = attribute(element, kAXIdentifierAttribute) as? String ?? "-"
+            let help = attribute(element, kAXHelpAttribute) as? String ?? ""
+            unnamed.append("\(role)/\(subrole)[\(identifier)] help=\"\(help)\" in \(path)")
+          }
+        }
+        let children = attribute(element, kAXChildrenAttribute) as? [AXUIElement] ?? []
+        for child in children {
+          visit(child, depth: depth + 1, path: depth < 6 ? path + ">" + role : path)
+        }
+      }
+      visit(application, depth: 0, path: "")
+      return (total, interactive, unnamed, roles, named)
     }
 
     private static func profileTextView(in view: NSView?, length: Int) -> NSTextView? {

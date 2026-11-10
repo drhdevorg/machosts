@@ -12,6 +12,7 @@ Repository documentation and developer-facing text are in English. The MacHosts 
 
 ## Documentation
 
+- [User guide for the current build](docs/USER-GUIDE.md)
 - [Product outline and decisions](docs/PRODUCT-OUTLINE.md)
 - [Architecture and safety contracts](docs/ARCHITECTURE.md)
 - [Implementation phases and acceptance criteria](docs/IMPLEMENTATION-PLAN.md)
