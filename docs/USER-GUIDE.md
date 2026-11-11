@@ -41,6 +41,16 @@ signature and is not notarized: it carries an ad-hoc signature only.
 The hosts file applies to the whole Mac, for every user, and stays in effect after an app
 quits. MacHosts treats every change to it as a deliberate, previewed step.
 
+While no profile is selected, the window says this and shows what the system file already
+contains: the number of entries and hostnames outside the MacHosts managed block, not
+counting the macOS defaults (`127.0.0.1 localhost`, `255.255.255.255 broadcasthost`,
+`::1 localhost`). Such entries may come from Terminal, a VPN client or another hosts tool.
+MacHosts never changes them; conflicts with your profiles appear in the preview.
+
+**Create example profile** adds an inactive profile named "Example". It uses only
+documentation addresses (`203.0.113.0/24`, `198.51.100.0/24`, `2001:db8::/32`) and
+`.example` names, so it cannot redirect a real site, and it shows one disabled line.
+
 ## Profiles and the editor
 
 A profile is a named piece of hosts text, for example:

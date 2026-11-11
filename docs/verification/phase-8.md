@@ -5,7 +5,8 @@ report covers the package benchmark and parser speedups, native launch, idle and
 measurements with a private measurement build, and in-process typing and scrolling
 measurements with the editor fixes they led to, an accessibility tree audit with focus
 return after sheets, an editor color contrast audit with the color fix it led to, warm
-menu openings, a release inventory with two signing/metadata fixes, backup retention, and the user guide. Real input latency, VoiceOver listening tests and full
+menu openings, a release inventory with two signing/metadata fixes, backup retention, the first-launch
+notice with foreign-entry summary and example profile, and the user guide. Real input latency, VoiceOver listening tests and full
 keyboard checks remain open (see "Not done").
 
 ## Benchmark
@@ -361,6 +362,39 @@ not fail the backup; extra files remain and are retried after the next backup. T
 new contract tests cover the newest-20 rule, a backwards clock, preservation of the
 previous snapshot, and refusal to unlink a hard-linked (shared) backup. Full 184-test
 package run, strict lint and Release build passed.
+
+## First launch: notice, foreign entries and example profile (November 11)
+
+The product outline's first-launch workflow asks for a short explanation, an example
+profile only on explicit request and a view of hosts entries that something else already
+manages. The empty detail view (no profile selected) now says that applied entries
+affect the whole Mac and every user, stay in effect after quitting and always need a
+preview and administrator approval. It promises no password prompt, and this build still cannot apply.
+
+- `ForeignEntrySummary` (HostsCore) counts active entries outside the managed block and
+  their hostnames. The macOS defaults (`127.0.0.1 localhost`, `255.255.255.255
+  broadcasthost`, `::1 localhost`) are counted separately. `SystemFileContents.foreign`
+  is nil when the file could not be parsed completely (encoding, size or line limit), so no
+  partial count is shown. With malformed markers, every entry counts as foreign.
+- **Create example profile** calls `ProfileWorkspaceModel.createExample`, which adds one
+  inactive local profile from `ExampleProfile.source`. It uses documentation addresses only
+  (RFC 5737/3849) and `.example` names (RFC 2606), with one disabled line. Localized heading
+  and note text containing a line break is rejected.
+- Two new tests: `foreignSummarySeparatesDefaultsManagedBlockAndOtherEntries`
+  (defaults, commented lines, a default address with an extra hostname, managed block,
+  IPv6, malformed markers, nil past the line limit and for unsupported encoding) and
+  `exampleProfileIsInactiveValidAndUsesDocumentationAddresses` (no diagnostics, enabled
+  pattern, documentation ranges, German text, nothing applied).
+- Native check, measurement build: `--measurement-workspace --measurement-empty-workspace
+  --measurement-observe-system --measurement-accessibility`, English and German. The audit
+  now also reports the `foreignEntrySummary` text. The main surface had 12 interactive
+  elements, none unnamed, including "Create example profile" / "Beispielprofil erstellen".
+  The summary read "The system file contains no entries besides the macOS defaults." / "Die
+  Systemdatei enthält außer den macOS-Standardeinträgen keine Einträge." It agreed with a
+  read-only count of the workstation file (three non-comment lines). The file was only read.
+  Clicking the example button natively was not driven; the model test covers creation.
+- Full 186-test package run (30 + 140 + 16), strict lint, shipping Release build
+  (signature verified, no measurement strings) and measurement build passed.
 
 ## User guide
 

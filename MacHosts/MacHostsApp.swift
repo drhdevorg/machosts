@@ -843,6 +843,11 @@ struct SystemObservationView: View {
         if role == kAXMenuBarRole as String { return }
         total += 1
         let subrole = attribute(element, kAXSubroleAttribute) as? String ?? ""
+        // The first-launch summary of foreign system file entries is spoken text.
+        if attribute(element, kAXIdentifierAttribute) as? String == "foreignEntrySummary" {
+          let value = attribute(element, kAXValueAttribute) as? String ?? "<no value>"
+          named.append("\(role)/foreignEntrySummary \"\(value)\"")
+        }
         if interactiveRoles.contains(role) {
           interactive += 1
           roles[role, default: 0] += 1

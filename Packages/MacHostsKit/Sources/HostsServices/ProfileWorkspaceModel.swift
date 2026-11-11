@@ -164,6 +164,15 @@ public final class ProfileWorkspaceModel {
     return change { $0.profiles.append(profile) } ? profile.id : nil
   }
 
+  /// Creates the first-launch example as an inactive local profile. Heading and note are
+  /// localized by the caller; text containing a line break is rejected.
+  public func createExample(name: String, heading: String, disabledNote: String) -> UUID? {
+    guard !(heading + disabledNote).contains(where: \.isNewline) else { return nil }
+    let profile = Profile(
+      name: name, source: ExampleProfile.source(heading: heading, disabledNote: disabledNote))
+    return change { $0.profiles.append(profile) } ? profile.id : nil
+  }
+
   /// Inserts exactly the reviewed source as a new inactive local profile in one revision.
   /// Complete workspace validation rejects the entire import on any budget/name failure.
   @discardableResult

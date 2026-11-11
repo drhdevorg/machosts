@@ -78,8 +78,9 @@ Further switches exist only in the measurement build:
   accessibility tree through the AX client API for the main window and the preview,
   add-remote and status sheets. It prints `measurement accessibility-surface=…` counts,
   `accessibility-name` lines with each control's spoken name, `accessibility-unnamed`
-  lines for controls without one, and whether Escape closed each sheet and returned the
-  first responder to the editor. Add `-AppleLanguages "(de)"` or `"(en)"` to choose the
+  lines for controls without one, the first-launch `foreignEntrySummary` text when it is
+  shown (empty workspace with `--measurement-observe-system`), and whether Escape closed
+  each sheet and returned the first responder to the editor. Add `-AppleLanguages "(de)"` or `"(en)"` to choose the
   language. Start it with `open -n --stderr <log> <app> --args …` so macOS activates the
   app; a binary started from a background shell is not activated and focus cannot return.
 - `--measurement-contrast` prints WCAG contrast ratios of the editor colors

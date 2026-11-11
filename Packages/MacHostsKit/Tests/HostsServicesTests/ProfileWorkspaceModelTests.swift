@@ -605,3 +605,29 @@ private final class EditorSaveFault: Sendable {
   #expect(model.workspace.profiles[1].source == large + "b")
   #expect(try model.workspace.encoded().count <= HostsLimits.workspaceBytes)
 }
+
+@Test @MainActor func exampleProfileIsInactiveValidAndUsesDocumentationAddresses() async throws {
+  let fixture = EditorFixture()
+  defer { fixture.cleanup() }
+  let store = try await WorkspaceStore.open(directory: fixture.directory)
+  let model = try await ProfileWorkspaceModel.open(store: store, delay: .seconds(60))
+  #expect(model.createExample(name: "Example", heading: "Line\nbreak", disabledNote: "x") == nil)
+  #expect(model.workspace.profiles.isEmpty)
+  let id = try #require(
+    model.createExample(name: "Beispiel", heading: "Beispiel – café", disabledNote: "Deaktiviert"))
+  let profile = try #require(model.workspace.profiles.first { $0.id == id })
+  #expect(!profile.isEnabled && profile.kind == .local && profile.name == "Beispiel")
+  let document = HostsDocument.parse(Data(profile.source.utf8), context: .profile)
+  #expect(document.diagnostics.isEmpty)
+  let entries = document.lines.compactMap { line -> HostsEntry? in
+    if case .entry(let entry) = line.kind { entry } else { nil }
+  }
+  #expect(entries.map(\.isEnabled) == [true, true, false])
+  #expect(entries.flatMap(\.hostnames).allSatisfy { $0.hasSuffix(".example") })
+  let documentation = ["203.0.113.", "198.51.100.", "2001:db8:"]
+  #expect(
+    entries.allSatisfy { entry in
+      documentation.contains { entry.address.canonical.hasPrefix($0) }
+    })
+  #expect(model.persisted.snapshot?.applied == nil)
+}

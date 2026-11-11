@@ -27,6 +27,8 @@ public struct SystemFileContents: Equatable, Sendable {
   public let digest: ContentDigest
   public let source: String?
   public let diagnostics: [HostsDiagnostic]
+  /// Nil when the file could not be parsed completely (encoding, size or line limit).
+  public let foreign: ForeignEntrySummary?
 
   init(data: Data) {
     digest = ContentDigest(data)
@@ -36,6 +38,9 @@ public struct SystemFileContents: Equatable, Sendable {
       diagnostics.contains { $0.code == .unsupportedEncoding }
       ? nil
       : String(data: data, encoding: .utf8)
+    foreign =
+      diagnostics.contains { [.unsupportedEncoding, .sizeLimit, .lineLimit].contains($0.code) }
+      ? nil : ForeignEntrySummary(document)
   }
 }
 

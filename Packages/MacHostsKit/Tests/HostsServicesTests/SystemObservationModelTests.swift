@@ -235,7 +235,39 @@ private struct ObservationFixture {
   let contents = SystemFileContents(data: Data(source.utf8))
   #expect(contents.source == source)
   #expect(contents.diagnostics.contains { $0.code == .lineLimit })
+  #expect(contents.foreign == nil)
+  #expect(SystemFileContents(data: Data([0xff])).foreign == nil)
   #expect(SystemFileContents(data: Data()).source == "")
+  #expect(SystemFileContents(data: Data()).foreign?.foreignEntries == 0)
+}
+
+@Test func foreignSummarySeparatesDefaultsManagedBlockAndOtherEntries() {
+  let source = """
+    ##
+    127.0.0.1	localhost
+    255.255.255.255	broadcasthost
+    ::1             localhost
+    # 192.0.2.99 commented.example
+    192.0.2.1 vpn.example intranet.example # added by a VPN client
+    127.0.0.1 localhost extra.example
+    \(HostsSyntax.begin)
+    203.0.113.5 managed.example
+    \(HostsSyntax.end)
+    2001:db8::1 v6.example
+
+    """
+  let summary = SystemFileContents(data: Data(source.utf8)).foreign
+  #expect(
+    summary
+      == ForeignEntrySummary(
+        HostsDocument.parse(Data(source.utf8), context: .system)))
+  #expect(summary?.defaultEntries == 3)
+  #expect(summary?.foreignEntries == 3)
+  #expect(summary?.foreignHostnames == 5)
+  #expect(summary?.hasManagedBlock == true)
+  let malformed = SystemFileContents(data: Data("\(HostsSyntax.begin)\n192.0.2.1 a.example\n".utf8))
+  #expect(malformed.foreign?.hasManagedBlock == false)
+  #expect(malformed.foreign?.foreignEntries == 1)
 }
 
 @Test @MainActor func previewRevisionSurvivesEqualBytesAfterFailureAndRestart() async throws {

@@ -122,9 +122,20 @@ struct ProfileWorkspaceView: View {
           ContentUnavailableView {
             Label("Your hosts profiles", systemImage: "network")
           } description: {
-            Text("Create a local profile to edit your desired hosts configuration.")
+            VStack(spacing: 8) {
+              Text("Create a local profile to edit your desired hosts configuration.")
+              Text(
+                "Applied entries affect the whole Mac and every user, and stay in effect after MacHosts quits. Changing the system file always needs a preview and administrator approval."
+              )
+              if let foreign = model.system.contents?.foreign {
+                foreignSummary(foreign).accessibilityIdentifier("foreignEntrySummary")
+              }
+            }
           } actions: {
             Button("New profile") { newProfile() }
+              .disabled(model.editor?.isReadOnly != false)
+            Button("Create example profile") { newExample() }
+              .accessibilityIdentifier("createExampleProfile")
               .disabled(model.editor?.isReadOnly != false)
           }
         }
@@ -234,6 +245,28 @@ struct ProfileWorkspaceView: View {
   private func newProfile() {
     guard let id = model.editor?.create(name: String(localized: "New profile")) else { return }
     selection = id
+  }
+
+  /// The example is created inactive; enabling and applying stay separate, explicit steps.
+  private func newExample() {
+    guard
+      let id = model.editor?.createExample(
+        name: String(localized: "Example"),
+        heading: String(
+          localized: "Example: documentation addresses only, this cannot redirect a real site."),
+        disabledNote: String(localized: "A disabled entry stays in the profile but is not applied:")
+      )
+    else { return }
+    selection = id
+  }
+
+  private func foreignSummary(_ summary: ForeignEntrySummary) -> Text {
+    if summary.foreignEntries == 0 {
+      return Text("The system file contains no entries besides the macOS defaults.")
+    }
+    return Text(
+      "Entries in the system file that MacHosts does not manage: \(summary.foreignEntries) (hostnames: \(summary.foreignHostnames)). MacHosts keeps them unchanged; conflicts appear in the preview."
+    )
   }
 
   private var commandActions: WorkspaceCommandActions {

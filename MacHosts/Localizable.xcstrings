@@ -4512,6 +4512,118 @@
           }
         }
       }
+    },
+    "Applied entries affect the whole Mac and every user, and stay in effect after MacHosts quits. Changing the system file always needs a preview and administrator approval.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied entries affect the whole Mac and every user, and stay in effect after MacHosts quits. Changing the system file always needs a preview and administrator approval."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angewendete Einträge wirken für den ganzen Mac und alle Benutzer und bleiben nach dem Beenden von MacHosts aktiv. Änderungen an der Systemdatei erfordern immer eine Vorschau und eine Administratorfreigabe."
+          }
+        }
+      }
+    },
+    "Create example profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create example profile"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispielprofil erstellen"
+          }
+        }
+      }
+    },
+    "Example": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Example"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispiel"
+          }
+        }
+      }
+    },
+    "Example: documentation addresses only, this cannot redirect a real site.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Example: documentation addresses only, this cannot redirect a real site."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispiel: nur Dokumentationsadressen, leitet keine echte Website um."
+          }
+        }
+      }
+    },
+    "A disabled entry stays in the profile but is not applied:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A disabled entry stays in the profile but is not applied:"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein deaktivierter Eintrag bleibt im Profil, wird aber nicht angewendet:"
+          }
+        }
+      }
+    },
+    "The system file contains no entries besides the macOS defaults.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The system file contains no entries besides the macOS defaults."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Systemdatei enthält außer den macOS-Standardeinträgen keine Einträge."
+          }
+        }
+      }
+    },
+    "Entries in the system file that MacHosts does not manage: %lld (hostnames: %lld). MacHosts keeps them unchanged; conflicts appear in the preview.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entries in the system file that MacHosts does not manage: %1$lld (hostnames: %2$lld). MacHosts keeps them unchanged; conflicts appear in the preview."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einträge in der Systemdatei, die MacHosts nicht verwaltet: %1$lld (Hostnamen: %2$lld). MacHosts lässt sie unverändert; Konflikte erscheinen in der Vorschau."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
