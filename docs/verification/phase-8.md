@@ -5,7 +5,7 @@ report covers the package benchmark and parser speedups, native launch, idle and
 measurements with a private measurement build, and in-process typing and scrolling
 measurements with the editor fixes they led to, an accessibility tree audit with focus
 return after sheets, an editor color contrast audit with the color fix it led to, warm
-menu openings, and the user guide. Real input latency, VoiceOver listening tests and full
+menu openings, a release inventory with two signing/metadata fixes, and the user guide. Real input latency, VoiceOver listening tests and full
 keyboard checks remain open (see "Not done").
 
 ## Benchmark
@@ -304,6 +304,54 @@ loop turn rather than at a verified frame on screen, and the 100-item
 menu immediately in its first tracking turn stopped opening menus after two to four
 openings; waiting for the end of tracking fixed the measurement.
 
+## Release inventory
+
+November 11, 2026, from the sources and a clean Release build (Xcode 27.1, macOS 27.2).
+
+**Dependencies and licenses.** The package has no external dependencies (no
+`Package.resolved`, only a local package reference in the project) and the repository
+vendors no third-party code. The only license file is the project's MIT `LICENSE`. The
+app links only system frameworks and the system Swift runtime (`otool -L`: Foundation,
+AppKit, SwiftUI, CoreGraphics, CryptoKit, ServiceManagement and `/usr/lib/swift`
+libraries); the helper tool links Foundation, CryptoKit and the Swift runtime. The
+Release app is 6.2 MiB.
+
+**Signatures and entitlements.** The app and the embedded `MacHostsApply` tool are
+ad-hoc signed with the hardened runtime (`flags=0x10002(adhoc,runtime)`), without App
+Sandbox and without a team. The inventory found that Xcode's injected base entitlements
+gave both Release binaries `com.apple.security.get-task-allow`, which lets debuggers and
+other same-user processes get the task port. Release now sets
+`CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO`. After a clean Release build neither binary
+carries it; Debug keeps it. The tool still carries Xcode's
+`com.apple.application-identifier` (`de.machosts.tool`) and a linker-derived signing
+identifier (`MacHostsApply-<hash>`). The authorization path that would rely on the
+tool's designated requirement is gated by phase 0 and will have to set a stable identifier.
+
+**Info.plist.** The copyright was written as `\u00a9` in the old-style project file,
+which only understands `\U`, so the app showed "Copyright u00a9 2026". It now contains
+the © character. No privacy usage descriptions are present, and none are needed: the app
+requests no protected resources.
+
+**Logging.** The app, tool and package sources contain no `Logger`, `os_log`, `NSLog` or
+`print` calls (`rg`), so no profile names, hosts, addresses or URLs reach the unified log
+from our code. Errors are shown in the interface. Diagnostics are a redacted report that
+leaves the app only when the user chooses **Copy report** (clipboard).
+
+**Network.** `RemoteProfileFetcher` is the only network code: an ephemeral
+`URLSession` without cookie storage or URL cache, HTTPS only, bounded time and size.
+Downloads start only for remote profiles the user added, through **Refresh** or the two
+settings **Refresh when MacHosts starts** and **Refresh while running**, both off by
+default. Without remote profiles the app makes no requests; the idle measurements
+above found no sockets. Offline operation was not exercised by disconnecting the
+network, which would change system settings.
+
+**Stored data and retention.** User defaults hold only `showsMenuBarExtra`,
+`refreshRemoteOnLaunch` and `remoteRefreshHours`. All profile data stays in the
+workspace folder described in the [user guide](../USER-GUIDE.md). Backups, recovery
+archives and `workspace.previous.json` are never deleted automatically. This is
+deliberate, to avoid losing data, and documented; the folder can grow with repeated
+replacements and restores.
+
 ## User guide
 
 [`docs/USER-GUIDE.md`](../USER-GUIDE.md) covers first launch, profiles and the editor,
@@ -324,6 +372,7 @@ diagnostics content and labels were checked against the code.
   authorization. Typing, scrolling, menu openings and sheet dismissal were driven
   in-process only (see above). Idle networking with an enabled remote schedule is not
   measured. Listening tests with VoiceOver, full keyboard navigation, Reduce Transparency,
-  contrast of SwiftUI views outside the editor, and the failure-matrix rerun remain open.
+  contrast of SwiftUI views outside the editor, the failure-matrix rerun, an offline run
+  with the network disconnected, and a backup retention policy remain open.
   The user guide documents the planned apply and removal flows as not yet available; it
   must be updated when the system writer lands.

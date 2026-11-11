@@ -1054,7 +1054,7 @@ private struct ChangePreviewView: View {
       }
       .buttonStyle(.link)
       .help("Show source line in profile")
-      .accessibilityLabel(Text(verbatim: name + ", ") + Text("Line \(line):"))
+      .accessibilityLabel(Text(verbatim: name + ", " + String(localized: "Line \(line):")))
       .accessibilityIdentifier("previewSourceLink")
     } else {
       Text(verbatim: name)

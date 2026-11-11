@@ -1,6 +1,6 @@
 # Phase 1 – Native project foundation
 
-As of October 25, 2026. **Implemented and locally verified; formal clean-checkout/CI evidence still open.** [ADR 0002](../decisions/0002-deferred-gate-0.md) explicitly defers gate 0, permitting this work. Privileged integration remains unavailable.
+As of October 25, 2026, updated November 11, 2026. **Implemented and locally verified; a clean checkout from GitHub passed all local checks (see below). Gate 1 stays open for CI, a fresh macOS user, and execution of the UI test plan.** [ADR 0002](../decisions/0002-deferred-gate-0.md) explicitly defers gate 0, permitting this work. Privileged integration remains unavailable.
 
 This report records the original phase-1 result. The folder later became a Git repository; the latest environment/build limitations are in [Development](../DEVELOPMENT.md) and [phase 5](phase-5.md).
 
@@ -47,3 +47,41 @@ The initial Debug build reported an unstripped already-signed embedded binary; t
 At this historical milestone there was no Git repository or configured CI. No actual clean checkout under a fresh user without Apple login was executed. Local builds required no team/developer certificate. Xcode-27.1 CI-runner availability remained unproven. Those infrastructure items keep formal gate 1 open; later Git initialization alone does not close it.
 
 No release package/publication, privileged calls, or workstation hosts access/change. Gate 0 remains deferred; real writer, authorization, VM integration, production approval remain open. The next functional block at this milestone was phase 2, with reproducible setup evidence still outstanding.
+
+## Clean checkout (November 11, 2026)
+
+A fresh `git clone` of `origin/main` at `bf59a12` into an empty private directory, with
+no reused derived data, package cache or module cache (all under that directory), on
+macOS 27.2, Apple M3, Xcode 27.1 (27A9275). The checkout had no modified files. Commands
+were the documented ones from [Development](../DEVELOPMENT.md), run without `sudo`, without
+a development team and without a signing certificate:
+
+| Step | Result | Time |
+| --- | --- | ---: |
+| `git clone` | passed, 0 modified files | 1 s |
+| `swift test` (package) | passed, 182 tests (30 + 136 + 16), no failures | 25 s |
+| Debug `build-for-testing` (app, tool, UI test bundle) | passed | 32 s |
+| Release `build` | passed | 38 s |
+| `swift-format lint --strict` | passed | 2 s |
+| `codesign --verify --deep --strict` (Release and Debug app) | passed | – |
+| `codesign --display` | app and tool `flags=0x10002(adhoc,runtime)`, no team | – |
+| Debug app start with `--ui-testing-local-workspace` | running after 6 s, one 1050×740 window | – |
+
+The app start used the private UI-test workspace, so no real workspace was created and
+the system file was not observed. Windows were counted with `CGWindowListCopyWindowInfo`,
+which needs no permission.
+
+Findings fixed afterwards:
+
+- One deprecation warning in our code (`Text` concatenation for a preview link's
+  accessibility label) was replaced by a single localized string.
+- The release inventory (phase 8) found `com.apple.security.get-task-allow` in the Release
+  signatures and a broken copyright escape in `Info.plist`; see
+  [phase 8](phase-8.md#release-inventory).
+
+Still open for gate 1: no CI runner with macOS 27 and Xcode 27.1 is configured, and none
+has been shown to exist; the repository has no CI configuration. The run used the
+developer's own macOS account, not a fresh user. The shared UI test plan builds from the
+command line, but its execution remains blocked by Accessibility/automation
+authorization (see [phase 5](phase-5.md)).
+
