@@ -137,7 +137,10 @@ Open **Import / Export…** from the toolbar or the File menu.
 - SwitchHosts import is not available yet.
 
 Backups are files named `workspace.backup-<UTC time>-<id>.json` in the workspace folder.
-MacHosts never deletes them; remove old ones yourself in Finder when no longer needed.
+MacHosts keeps the 20 most recent. After writing a new backup it removes the oldest
+beyond that, never the one just written. Copies of damaged workspace files
+(`workspace.recovery-*.json`) and `workspace.previous.json` are never removed
+automatically. Export to a MacHosts JSON file to keep a copy longer.
 
 ## Menu bar, login start and settings
 

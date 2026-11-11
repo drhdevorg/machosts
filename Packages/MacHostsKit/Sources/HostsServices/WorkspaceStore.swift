@@ -307,7 +307,24 @@ public actor WorkspaceStore {
       Self.backupPrefix + stamp + "-" + UUID().uuidString.prefix(8).lowercased() + ".json"
     try files.writeNew(
       data, name: name, expectedCurrent: persistedBytes.map(ContentDigest.init))
+    pruneBackups(keeping: name)
     return name
+  }
+
+  /// Replacement backups kept after a new one is written. Each can be as large as the
+  /// workspace limit, so an unbounded series would grow without limit.
+  public static let backupRetention = 20
+
+  /// Removes the oldest replacement backups beyond the retention count, only after a new
+  /// backup was published, and never the new one even when the clock moved backwards.
+  /// Recovery copies of damaged snapshots and `workspace.previous.json` are not touched.
+  /// A failed removal leaves extra files and is retried after the next backup.
+  private func pruneBackups(keeping newest: String) {
+    guard let names = try? backups() else { return }
+    let older = names.filter { $0 != newest }
+    for name in older.dropFirst(Self.backupRetention - 1) {
+      try? files.remove(name)
+    }
   }
 
   /// Backup names, newest first (names sort by UTC timestamp).

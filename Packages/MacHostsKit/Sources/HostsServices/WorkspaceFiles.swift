@@ -143,6 +143,22 @@ final class WorkspaceFiles: Sendable {
     try publish(data, name: name, faultInjection: false)
   }
 
+  /// Removes one private regular file by name. Links, foreign-owned or shared files are
+  /// refused rather than unlinked. Callers pass only names they listed themselves.
+  func remove(_ name: String) throws {
+    guard !name.contains("/"), !name.hasPrefix(".") else { throw WorkspaceStoreFailure.unsafeFile }
+    let fd = openat(directoryFD, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
+    guard fd >= 0 else {
+      if errno == ENOENT { return }
+      throw WorkspaceStoreFailure.io(errno)
+    }
+    defer { close(fd) }
+    try Self.checkFile(fd)
+    guard unlinkat(directoryFD, name, 0) == 0 || errno == ENOENT else {
+      throw WorkspaceStoreFailure.io(errno)
+    }
+  }
+
   /// Regular-file names in the private directory with the given prefix and suffix.
   func names(prefix: String, suffix: String) throws -> [String] {
     let fd = openat(directoryFD, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC)

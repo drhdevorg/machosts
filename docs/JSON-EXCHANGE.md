@@ -103,7 +103,11 @@ preview show the replaced draft as not applied.
 current draft first, then restores the backed-up draft (profiles, folders, deleted
 profiles, remote origins and cached content) as a new revision. Applied state and
 intents are not restored. Only listed current-schema backups that pass full
-validation are accepted. Backups are never deleted automatically.
+validation are accepted. After each new backup, the oldest backups beyond the
+20 most recent are removed (`WorkspaceStore.backupRetention`); the backup just
+written is always kept, even if the clock moved backwards. Only private regular
+files with a single link are removed. A failed removal leaves extra files and
+is retried after the next backup.
 
 Gate 7 remains open. SwitchHosts formats and native file-panel/accessibility
 acceptance remain outstanding. Verification is recorded in

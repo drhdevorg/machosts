@@ -130,3 +130,60 @@ private func incomingDocument() throws -> WorkspaceExchangeDocument {
     _ = try await store.writeBackup(expectedGeneration: generation + 1)
   }
 }
+
+@Test func backupRetentionKeepsTheNewestAndAlwaysTheJustWrittenBackup() async throws {
+  let directory = temporaryDirectory()
+  defer { remove(directory) }
+  let store = try await WorkspaceStore.open(directory: directory)
+  _ = try await store.saveDraft(
+    Workspace(revision: 1, profiles: [Profile(name: "B")]), expectedGeneration: 0)
+  _ = try await store.saveDraft(
+    Workspace(revision: 2, profiles: [Profile(name: "A")]), expectedGeneration: 1)
+  let generation = try #require(await store.state().snapshot?.generation)
+  let limit = WorkspaceStore.backupRetention
+  let base = Date(timeIntervalSince1970: 1_800_000_000)
+  var written: [String] = []
+  for step in 0..<(limit + 2) {
+    written.append(
+      try await store.writeBackup(
+        expectedGeneration: generation, at: base.addingTimeInterval(Double(step) * 60)))
+  }
+  #expect(try await store.backups() == Array(written.reversed().prefix(limit)))
+
+  // A clock that moved backwards still keeps the backup that was just written.
+  let early = try await store.writeBackup(
+    expectedGeneration: generation, at: base.addingTimeInterval(-3_600))
+  let kept = try await store.backups()
+  #expect(kept.count == limit)
+  #expect(kept.contains(early))
+  #expect(try await store.readBackup(early).draft.profiles.map(\.name) == ["A"])
+  #expect(!kept.contains(written[2]))
+
+  // The previous snapshot is never pruned.
+  let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+  #expect(names.contains("workspace.json"))
+  #expect(names.contains("workspace.previous.json"))
+}
+
+@Test func backupRetentionRefusesToUnlinkSharedFiles() async throws {
+  let directory = temporaryDirectory()
+  defer { remove(directory) }
+  let store = try await WorkspaceStore.open(directory: directory)
+  _ = try await store.saveDraft(
+    Workspace(revision: 1, profiles: [Profile(name: "A")]), expectedGeneration: 0)
+  let generation = try #require(await store.state().snapshot?.generation)
+  let base = Date(timeIntervalSince1970: 1_800_000_000)
+  let oldest = try await store.writeBackup(expectedGeneration: generation, at: base)
+  // A second hard link makes the oldest backup a shared inode, which is never unlinked.
+  #expect(
+    link(
+      directory.appendingPathComponent(oldest).path,
+      directory.appendingPathComponent("elsewhere.json").path) == 0)
+  for step in 1...WorkspaceStore.backupRetention {
+    _ = try await store.writeBackup(
+      expectedGeneration: generation, at: base.addingTimeInterval(Double(step) * 60))
+  }
+  let kept = try await store.backups()
+  #expect(kept.contains(oldest))
+  #expect(kept.count == WorkspaceStore.backupRetention + 1)
+}

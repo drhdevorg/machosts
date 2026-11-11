@@ -5,7 +5,7 @@ report covers the package benchmark and parser speedups, native launch, idle and
 measurements with a private measurement build, and in-process typing and scrolling
 measurements with the editor fixes they led to, an accessibility tree audit with focus
 return after sheets, an editor color contrast audit with the color fix it led to, warm
-menu openings, a release inventory with two signing/metadata fixes, and the user guide. Real input latency, VoiceOver listening tests and full
+menu openings, a release inventory with two signing/metadata fixes, backup retention, and the user guide. Real input latency, VoiceOver listening tests and full
 keyboard checks remain open (see "Not done").
 
 ## Benchmark
@@ -348,9 +348,19 @@ network, which would change system settings.
 **Stored data and retention.** User defaults hold only `showsMenuBarExtra`,
 `refreshRemoteOnLaunch` and `remoteRefreshHours`. All profile data stays in the
 workspace folder described in the [user guide](../USER-GUIDE.md). Backups, recovery
-archives and `workspace.previous.json` are never deleted automatically. This is
-deliberate, to avoid losing data, and documented; the folder can grow with repeated
-replacements and restores.
+archives and `workspace.previous.json` are never deleted automatically.
+
+**Backup retention (November 11).** Each replacement backup can reach the 32 MiB
+workspace limit, so the series is now bounded: after a new `workspace.backup-*.json`
+is published, `WorkspaceStore` removes the oldest beyond the 20 most recent
+(`backupRetention`). The just-written backup is always kept, even if the clock moved
+backwards and its name sorts oldest. Removal opens the name with `O_NOFOLLOW` and
+unlinks only a private, user-owned regular file with one link; recovery copies of
+damaged snapshots and `workspace.previous.json` are not candidates. Pruning errors do
+not fail the backup; extra files remain and are retried after the next backup. Two
+new contract tests cover the newest-20 rule, a backwards clock, preservation of the
+previous snapshot, and refusal to unlink a hard-linked (shared) backup. Full 184-test
+package run, strict lint and Release build passed.
 
 ## User guide
 
@@ -373,6 +383,7 @@ diagnostics content and labels were checked against the code.
   in-process only (see above). Idle networking with an enabled remote schedule is not
   measured. Listening tests with VoiceOver, full keyboard navigation, Reduce Transparency,
   contrast of SwiftUI views outside the editor, the failure-matrix rerun, an offline run
-  with the network disconnected, and a backup retention policy remain open.
+  with the network disconnected remain open. Recovery copies of damaged snapshots are
+  kept without limit by design.
   The user guide documents the planned apply and removal flows as not yet available; it
   must be updated when the system writer lands.
